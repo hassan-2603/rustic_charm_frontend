@@ -1,3 +1,5 @@
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://rustic-charm-backend.onrender.com").replace(/\/$/, "");
+
 export default function Rating() {
     return (
         <div className="p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen">
@@ -15,7 +17,7 @@ export default function Rating() {
 
                     <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-inner flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72">
                         <img
-                            src="/api/rating-qr.png"
+                            src={`${API_BASE_URL}/api/rating-qr.png`}
                             alt="Rating QR Code"
                             className="w-full h-full object-contain mix-blend-multiply"
                         />
