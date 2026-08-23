@@ -36,7 +36,7 @@ export const KOT_PRINTER_SETTINGS: PrinterSettings = {
 
 const STORAGE_KEY = "rustic_charm_printer_settings";
 const CAPTAIN_NAME_KEY = "rustic_charm_captain_name";
-const CONNECTOR_URL = "http://192.168.0.203:17890";
+const CONNECTOR_URL = "http://192.168.0.122:17890";
 
 export function getCaptainName() {
   return localStorage.getItem(CAPTAIN_NAME_KEY) || "";
