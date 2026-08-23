@@ -1,6 +1,6 @@
 import { requestAdminJson } from "./adminApi";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://rustic-c-bck.onrender.com").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://rustic-charm-backend.onrender.com").replace(/\/$/, "");
 
 // Configuration
 const LANGUAGES = [

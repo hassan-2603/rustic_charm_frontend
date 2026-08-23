@@ -1,3 +1,3 @@
-/api/* https://rustic-c-bck.onrender.com/api/:splat 200
-/images/* https://rustic-c-bck.onrender.com/images/:splat 200
+/api/*https://rustic-charm-backend.onrender.com/api/:splat 200
+/images/*https://rustic-charm-backend.onrender.com/images/:splat 200
 /* /index.html 200
