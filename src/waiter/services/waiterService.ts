@@ -1,4 +1,4 @@
-import { requestAdminJson } from "../../admin/services/adminApi";
+import { requestStaffJson as requestAdminJson } from "../../services/staffApi";
 
 export async function loginWaiter(identifier: string, pin: string) {
   const trimmedIdentifier = identifier.trim();

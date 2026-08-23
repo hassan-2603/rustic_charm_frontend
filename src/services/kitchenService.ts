@@ -1,4 +1,5 @@
 import { requestAdminJson } from "../admin/services/adminApi";
+import { requestStaffJson } from "./staffApi";
 
 const LOCAL_STORAGE_KEY = "rustic_kitchen_password";
 
@@ -7,7 +8,7 @@ export function listenKitchenOrders(callback: (orders: any[]) => void) {
 
   const load = async () => {
     try {
-      const data = await requestAdminJson("/orders");
+      const data = await requestStaffJson("/orders");
       const orders = Array.isArray(data)
         ? data.filter((order: any) => order.orderSource === "admin"
           ? order.status === "Accepted"
@@ -29,7 +30,7 @@ export function listenKitchenOrders(callback: (orders: any[]) => void) {
 }
 
 export async function updateOrderStatus(orderId: string, status: string, extraData: Record<string, any> = {}) {
-  return requestAdminJson(`/orders/${orderId}`, {
+  return requestStaffJson(`/orders/${orderId}`, {
     method: "PUT",
     body: JSON.stringify({ status, ...extraData }),
   });
@@ -39,7 +40,7 @@ export async function getKitchenCredentials() {
   const fallback = { id: "kitchen", password: localStorage.getItem(LOCAL_STORAGE_KEY) || "0000" };
 
   try {
-    const data = await requestAdminJson("/kitchen-credentials");
+    const data = await requestStaffJson("/kitchen-credentials");
     const creds = {
       id: data?.id || fallback.id,
       password: data?.password || fallback.password,
