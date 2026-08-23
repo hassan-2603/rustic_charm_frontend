@@ -51,6 +51,39 @@ export function listenOrders(callback: (orders: any[]) => void) {
   };
 }
 
+export function listenTables(callback: (tables: any[]) => void) {
+  let active = true;
+
+  const load = async () => {
+    try {
+      const tables = await requestAdminJson("/tables");
+      if (active) callback(Array.isArray(tables) ? tables : []);
+    } catch (error) {
+      console.error("Failed to load tables:", error);
+    }
+  };
+
+  load();
+  const interval = setInterval(load, 5000);
+
+  return () => {
+    active = false;
+    clearInterval(interval);
+  };
+}
+
+export async function createCaptainOrder(order: {
+  tableId: string;
+  waiterId: string;
+  items: Array<{ menuItemId: string; name: string; quantity: number; price: number }>;
+  total: number;
+}) {
+  return requestAdminJson("/orders", {
+    method: "POST",
+    body: JSON.stringify(order),
+  });
+}
+
 export async function acceptOrder(orderId: string, waiter: any) {
   return requestAdminJson(`/orders/${orderId}`, {
     method: "PUT",

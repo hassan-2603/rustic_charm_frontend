@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Search, Trash2 } from "lucide-react";
-import { getMenuItems } from "../../admin/services/menuService";
-import { listenTables } from "../../admin/services/tableApi";
-import { createAdminOrder } from "../../admin/services/orderApi";
+import { getMenuItems } from "../../services/customerApi";
+import { listenTables, createCaptainOrder } from "../services/waiterService";
 import { getLocalizedField, getMenuPriceOptions } from "../../types";
 
 type SelectedItem = { item: any; quantity: number };
@@ -54,7 +53,7 @@ export default function OrderByCaptain() {
     }
     setPlacing(true);
     try {
-      await createAdminOrder({
+      await createCaptainOrder({
         tableId: table.id,
         waiterId: waiter.id,
         total,
