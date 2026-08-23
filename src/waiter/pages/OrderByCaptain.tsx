@@ -1,0 +1,89 @@
+import { useEffect, useMemo, useState } from "react";
+import { Minus, Plus, Search, Trash2 } from "lucide-react";
+import { getMenuItems } from "../../admin/services/menuService";
+import { listenTables } from "../../admin/services/tableApi";
+import { createAdminOrder } from "../../admin/services/orderApi";
+import { getLocalizedField, getMenuPriceOptions } from "../../types";
+
+type SelectedItem = { item: any; quantity: number };
+
+export default function OrderByCaptain() {
+  const waiter = JSON.parse(sessionStorage.getItem("waiter") || "{}");
+
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [area, setArea] = useState("");
+  const [tableId, setTableId] = useState("");
+  const [selected, setSelected] = useState<SelectedItem[]>([]);
+  const [placing, setPlacing] = useState(false);
+
+  useEffect(() => {
+    getMenuItems().then(setMenuItems).catch(console.error);
+    return listenTables(setTables);
+  }, []);
+
+  const areas = useMemo(() => [...new Set(tables.map((table) => table.area))], [tables]);
+  const areaTables = tables.filter((table) => !area || table.area === area);
+  const filteredItems = menuItems.filter((item) => {
+    const name = getLocalizedField(item.name, "English");
+    return `${name} ${item.category || ""}`.toLowerCase().includes(search.toLowerCase());
+  });
+  const getItemPrice = (item: any) => Number(item.price || getMenuPriceOptions(item)[0]?.amount || 0);
+  const total = selected.reduce((sum, entry) => sum + getItemPrice(entry.item) * entry.quantity, 0);
+
+  function addItem(item: any) {
+    setSelected((current) => {
+      const existing = current.find((entry) => entry.item.id === item.id);
+      if (existing) return current.map((entry) => entry.item.id === item.id ? { ...entry, quantity: entry.quantity + 1 } : entry);
+      return [...current, { item, quantity: 1 }];
+    });
+  }
+
+  function changeQuantity(id: string, amount: number) {
+    setSelected((current) => current
+      .map((entry) => entry.item.id === id ? { ...entry, quantity: entry.quantity + amount } : entry)
+      .filter((entry) => entry.quantity > 0));
+  }
+
+  async function placeOrder() {
+    const table = tables.find((entry) => entry.id === tableId);
+    if (!waiter?.id || !table || selected.length === 0) {
+      alert("Select an area, table, and at least one menu item.");
+      return;
+    }
+    setPlacing(true);
+    try {
+      await createAdminOrder({
+        tableId: table.id,
+        waiterId: waiter.id,
+        total,
+        items: selected.map(({ item, quantity }) => ({
+          menuItemId: item.id,
+          name: getLocalizedField(item.name, "English"),
+          quantity,
+          price: getItemPrice(item),
+        })),
+      });
+      setSelected([]);
+      alert("Order placed successfully.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Unable to place order.");
+    } finally {
+      setPlacing(false);
+    }
+  }
+
+  return <div className="space-y-8 p-4 sm:p-6 lg:p-8">
+    <div><h1 className="text-3xl font-bold">Order by Captain</h1><p className="text-gray-500 mt-1">Send an order directly to the kitchen.</p></div>
+    <div className="grid gap-5 md:grid-cols-3">
+      <label className="text-sm font-semibold">Waiter<input value={waiter?.name || ""} disabled className="mt-2 w-full border rounded-xl p-3 font-normal bg-gray-100 text-gray-600" /></label>
+      <label className="text-sm font-semibold">Area<select value={area} onChange={(event) => { setArea(event.target.value); setTableId(""); }} className="mt-2 w-full border rounded-xl p-3 font-normal"><option value="">Select area</option>{areas.map((value) => <option key={value} value={value}>{tables.find((table) => table.area === value)?.areaLabel || value}</option>)}</select></label>
+      <label className="text-sm font-semibold">Table Number<select value={tableId} onChange={(event) => setTableId(event.target.value)} disabled={!area} className="mt-2 w-full border rounded-xl p-3 font-normal"><option value="">Select table</option>{areaTables.map((table) => <option key={table.id} value={table.id}>{table.tableNumber}</option>)}</select></label>
+    </div>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="bg-white rounded-2xl border p-5 space-y-5"><div className="relative"><Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search menu..." className="w-full border rounded-xl py-3 pl-11 pr-4" /></div><div className="grid gap-3 sm:grid-cols-2">{filteredItems.map((item) => <button key={item.id} onClick={() => addItem(item)} className="text-left border rounded-xl p-4 hover:border-olive hover:bg-gray-50"><div className="font-semibold">{getLocalizedField(item.name, "English")}</div><div className="text-sm text-gray-500">{item.category || ""}</div><div className="mt-2 font-semibold">₹{item.price || getMenuPriceOptions(item)[0]?.amount || 0}</div></button>)}</div></section>
+      <section className="bg-white rounded-2xl border p-5 h-fit"><h2 className="text-xl font-bold">Selected Items</h2><div className="mt-4 space-y-3">{selected.map(({ item, quantity }) => <div key={item.id} className="border-b pb-3"><div className="flex justify-between gap-3"><span className="font-medium">{getLocalizedField(item.name, "English")}</span><button onClick={() => changeQuantity(item.id, -quantity)} title="Remove item" className="text-red-600"><Trash2 size={17} /></button></div><div className="mt-2 flex items-center justify-between"><span>₹{getItemPrice(item) * quantity}</span><span className="flex items-center gap-2"><button onClick={() => changeQuantity(item.id, -1)} title="Decrease quantity" className="border rounded p-1"><Minus size={15} /></button><span>{quantity}</span><button onClick={() => changeQuantity(item.id, 1)} title="Increase quantity" className="border rounded p-1"><Plus size={15} /></button></span></div></div>)}{selected.length === 0 && <p className="text-gray-500">No items selected.</p>}</div><div className="mt-5 flex justify-between border-t pt-4 font-bold"><span>Total</span><span>₹{total}</span></div><button onClick={placeOrder} disabled={placing} className="mt-5 w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60">{placing ? "Placing..." : "Place Order"}</button></section>
+    </div>
+  </div>;
+}

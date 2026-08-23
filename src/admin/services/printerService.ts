@@ -79,15 +79,27 @@ function toPrintBill(order: any) {
   };
 }
 
-async function connectorRequest(path: string, body: unknown) {
-  const response = await fetch(`${CONNECTOR_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error || "Print connector failed");
-  return result;
+async function connectorRequest(path: string, body: unknown, timeoutMs = 2500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${CONNECTOR_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Print connector failed");
+    return result;
+  } catch (error: any) {
+    if (error?.name === "AbortError") {
+      throw new Error("Print connector not reachable");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function testPrinter(settings: PrinterSettings) {

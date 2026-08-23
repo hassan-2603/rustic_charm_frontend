@@ -31,6 +31,9 @@ export default function OrderDetailsDrawer({
   const [tables, setTables] = useState<any[]>([]);
   const [selectedTableId, setSelectedTableId] = useState("");
   const [savingTable, setSavingTable] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const areas = useMemo(() => [...new Set(tables.map((table) => table.area))], [tables]);
   const selectedTable = tables.find((table) => table.id === selectedTableId);
@@ -40,6 +43,7 @@ export default function OrderDetailsDrawer({
       setDiscountType(order.discountType || 'percent');
       setDiscountValue(order.discountValue !== undefined ? String(order.discountValue) : "");
       setIsDiscountFormOpen(!!order.discountAmount);
+      setSelectedPaymentMethod(order.paymentMethod || "");
     }
   }, [order]);
 
@@ -71,6 +75,23 @@ export default function OrderDetailsDrawer({
       alert(err instanceof Error ? err.message : "Unable to update table.");
     } finally {
       setSavingTable(false);
+    }
+  }
+
+  async function handleSavePayment() {
+    if (!selectedPaymentMethod) {
+      alert("Please select a payment method.");
+      return;
+    }
+    setSavingPayment(true);
+    try {
+      await updateOrder(order.id, { paymentMethod: selectedPaymentMethod });
+      order.paymentMethod = selectedPaymentMethod;
+      alert("Payment method saved.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unable to save payment method.");
+    } finally {
+      setSavingPayment(false);
     }
   }
 
@@ -141,12 +162,14 @@ export default function OrderDetailsDrawer({
   }
 
   async function handlePrint() {
+    setIsPrinting(true);
     try {
-      await printBillThroughConnector(order);
-      return;
-    } catch (error) {
-      console.warn("Print connector unavailable; opening browser print dialog.", error);
-    }
+      try {
+        await printBillThroughConnector(order);
+        return;
+      } catch (error) {
+        console.warn("Print connector unavailable; opening browser print dialog.", error);
+      }
 
     const itemsHtml = order.items
       ?.map(
@@ -283,6 +306,9 @@ export default function OrderDetailsDrawer({
       win.focus();
       win.print();
     }, 300);
+    } finally {
+      setIsPrinting(false);
+    }
   }
 
   const hasDiscount = order.discountAmount && order.discountAmount > 0;
@@ -360,6 +386,8 @@ export default function OrderDetailsDrawer({
                     ? "bg-blue-100 text-blue-700"
                     : order.paymentMethod === "Cash"
                     ? "bg-orange-100 text-orange-700"
+                    : order.paymentMethod === "Zomato"
+                    ? "bg-red-100 text-red-700"
                     : "bg-gray-100 text-gray-600"
                 }`}
               >
@@ -641,9 +669,12 @@ export default function OrderDetailsDrawer({
 
             <button
               onClick={handlePrint}
-              className="flex-1 bg-olive hover:bg-olive/90 text-white py-3 rounded-xl font-semibold transition"
+              disabled={isPrinting}
+              className={`flex-1 text-white py-3 rounded-xl font-semibold transition ${
+                isPrinting ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+              }`}
             >
-              Print Bill
+              {isPrinting ? "Printing..." : "Print Bill"}
             </button>
 
             <button
@@ -651,6 +682,41 @@ export default function OrderDetailsDrawer({
               className="flex-1 border py-3 rounded-xl font-semibold hover:bg-gray-50 transition"
             >
               Close
+            </button>
+
+          </div>
+
+          {/* Payment Method + Save (persists paymentMethod on the order) */}
+          <div className="border rounded-2xl p-5 space-y-4">
+
+            <h3 className="font-semibold">
+              Payment Method
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              {["Card", "Cash", "UPI", "Zomato"].map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod(method)}
+                  className={`py-3 rounded-xl font-semibold border transition ${
+                    selectedPaymentMethod === method
+                      ? "bg-olive text-white border-olive"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {method}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSavePayment}
+              disabled={savingPayment}
+              className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-semibold disabled:opacity-60"
+            >
+              {savingPayment ? "Saving..." : "Save"}
             </button>
 
           </div>

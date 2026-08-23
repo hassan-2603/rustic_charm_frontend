@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Rating from "./pages/Rating";
+import OrderByCaptain from "./pages/OrderByCaptain";
 import WaiterLayout from "./components/WaiterLayout";
 
 export default function WaiterApp() {
@@ -20,6 +21,10 @@ export default function WaiterApp() {
         <Route
           path="rating"
           element={<Rating />}
+        />
+        <Route
+          path="order-by-captain"
+          element={<OrderByCaptain />}
         />
       </Route>
     </Routes>

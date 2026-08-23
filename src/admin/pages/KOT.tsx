@@ -38,7 +38,9 @@ export default function KOT() {
               <button
                 onClick={() => handlePrint(order)}
                 disabled={printingId === order.id}
-                className="flex items-center justify-center gap-2 bg-olive text-white px-4 py-2 rounded-lg disabled:opacity-60"
+                className={`flex items-center justify-center gap-2 text-white px-4 py-2 rounded-lg transition ${
+                  printingId === order.id ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                }`}
               >
                 <Printer size={18} />
                 {printingId === order.id ? "Printing..." : "Print KOT"}

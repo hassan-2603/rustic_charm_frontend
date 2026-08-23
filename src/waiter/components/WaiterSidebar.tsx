@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { LayoutDashboard, Star, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Star, LogOut, Menu, X, ClipboardList } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 const links = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/waiter/dashboard" },
+    { icon: ClipboardList, label: "Order by Captain", to: "/waiter/order-by-captain" },
     { icon: Star, label: "Rating", to: "/waiter/rating" },
 ];
 
