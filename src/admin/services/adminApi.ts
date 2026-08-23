@@ -10,19 +10,6 @@ async function getAdminToken() {
     return storedToken;
   }
 
-  // In local/dev with no Firebase user, prefer the local backend token so admin UI works
-  try {
-    const hostname = typeof window !== "undefined" && window.location ? window.location.hostname : null;
-    const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "";
-    if (!auth.currentUser && isLocalHost) {
-      console.debug("adminApi: using local fallback admin token for dev host", hostname);
-      localStorage.setItem("adminToken", LOCAL_BACKEND_ADMIN_TOKEN);
-      return LOCAL_BACKEND_ADMIN_TOKEN;
-    }
-  } catch (e) {
-    // ignore environment where window is not available
-  }
-
   if (auth.currentUser) {
     try {
       const freshToken = await auth.currentUser.getIdToken(true);
@@ -35,7 +22,16 @@ async function getAdminToken() {
     }
   }
 
-  return LOCAL_BACKEND_ADMIN_TOKEN;
+  // Local dev fallback ONLY on localhost/127.0.0.1 — never used in production
+  const hostname = typeof window !== "undefined" && window.location ? window.location.hostname : null;
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (isLocalHost) {
+    console.debug("adminApi: using local fallback admin token for dev host", hostname);
+    localStorage.setItem("adminToken", LOCAL_BACKEND_ADMIN_TOKEN);
+    return LOCAL_BACKEND_ADMIN_TOKEN;
+  }
+
+  throw new Error("Not authenticated: no Firebase admin session found. Please log in again.");
 }
 
 async function parseErrorResponse(response: Response) {
@@ -99,21 +95,6 @@ async function fetchAdminJson(path: string, options: RequestInit = {}) {
       } catch (err) {
         console.warn("Failed to refresh admin token after 401:", err);
       }
-    }
-
-    if (response.status === 401) {
-      const fallbackHeaders = {
-        "Content-Type": "application/json",
-        ...options.headers,
-        Authorization: `Bearer ${LOCAL_BACKEND_ADMIN_TOKEN}`,
-        "x-admin-token": LOCAL_BACKEND_ADMIN_TOKEN,
-      };
-      localStorage.setItem("adminToken", LOCAL_BACKEND_ADMIN_TOKEN);
-      const fallbackUrl = `${API_BASE}${path}${path.includes("?") ? "&" : "?"}adminToken=${encodeURIComponent(LOCAL_BACKEND_ADMIN_TOKEN)}`;
-      response = await fetch(fallbackUrl, {
-        ...options,
-        headers: fallbackHeaders,
-      });
     }
   }
 
