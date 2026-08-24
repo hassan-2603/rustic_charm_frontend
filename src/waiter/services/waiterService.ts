@@ -158,3 +158,26 @@ export async function updateOrderStatus(orderId: string, status: string, extraDa
     body: JSON.stringify({ status, ...extraData }),
   });
 }
+
+export async function updateOrderDiscount(orderId: string, discountData: Record<string, any>) {
+  return requestAdminJson(`/orders/${orderId}`, {
+    method: "PUT",
+    body: JSON.stringify(discountData),
+  });
+}
+
+export async function addOrderItems(
+  orderId: string,
+  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>
+) {
+  return requestAdminJson(`/orders/${orderId}/items`, {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
+export async function cancelOrder(orderId: string) {
+  return requestAdminJson(`/orders/${orderId}`, {
+    method: "DELETE",
+  });
+}

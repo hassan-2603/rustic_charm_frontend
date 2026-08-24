@@ -1,15 +1,22 @@
 
 import { useEffect, useState } from "react";
 
-import OrderCard from "../components/OrderCard";
+import OrderCard, { type PrintButtonState } from "../components/OrderCard";
+import DiscountModal from "../../components/DiscountModal";
+import AddItemModal from "../components/AddItemModal";
+import { printBill, printKOT, retryPrint } from "../services/printerService";
+import { openReceiptPreview } from "../../utils/receiptPreview";
+import type { DiscountPayload } from "../../utils/discountUtils";
+import type { PrintJob } from "../../services/printApi";
 
 import {
   listenOrders,
   acceptOrder,
   rejectOrder,
-  serveOrder,
   endSession,
   updateOrderStatus,
+  updateOrderDiscount,
+  cancelOrder,
 } from "../services/waiterService";
 
 export default function Dashboard() {
@@ -21,6 +28,14 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<any[]>([]);
 
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
+
+  const [billStates, setBillStates] = useState<Record<string, PrintButtonState>>({});
+  const [kotStates, setKotStates] = useState<Record<string, PrintButtonState>>({});
+  const [lastJobId, setLastJobId] = useState<Record<string, string>>({});
+
+  const [discountOrder, setDiscountOrder] = useState<any>(null);
+
+  const [addItemOrder, setAddItemOrder] = useState<any>(null);
 
   useEffect(() => {
 
@@ -39,13 +54,6 @@ async function handleRejectOrder(order: any) {
   await rejectOrder(order.id);
 }
 
-async function handleReadyOrder(order: any) {
-  console.log("READY", order);
-}
-
-async function handleServedOrder(order: any) {
-  await serveOrder(order.id);
-}
 const newOrders = orders.filter(
   (o: any) =>
     o.status === "Pending" &&
@@ -82,6 +90,86 @@ async function completePayment(method: string) {
 }
 async function handleEndSession(order: any) {
   await endSession(order);
+}
+
+async function handlePrintBill(order: any) {
+  setBillStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+  const outcome = await printBill(order.id, waiter?.id);
+  if (outcome.job) setLastJobId((current) => ({ ...current, [`${order.id}:BILL`]: outcome.job!.id }));
+  setBillStates((current) => ({
+    ...current,
+    [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+  }));
+}
+
+async function handlePrintKOT(order: any) {
+  setKotStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+  const outcome = await printKOT(order.id, waiter?.id);
+  if (outcome.job) setLastJobId((current) => ({ ...current, [`${order.id}:KOT`]: outcome.job!.id }));
+  setKotStates((current) => ({
+    ...current,
+    [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+  }));
+}
+
+async function handleRetryBill(order: any) {
+  const jobId = lastJobId[`${order.id}:BILL`];
+  if (!jobId) return handlePrintBill(order);
+  setBillStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+  const outcome: { job: PrintJob | null; ok: boolean; message: string } = await retryPrint(jobId, "BILL");
+  setBillStates((current) => ({
+    ...current,
+    [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+  }));
+}
+
+async function handleRetryKOT(order: any) {
+  const jobId = lastJobId[`${order.id}:KOT`];
+  if (!jobId) return handlePrintKOT(order);
+  setKotStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+  const outcome: { job: PrintJob | null; ok: boolean; message: string } = await retryPrint(jobId, "KOT");
+  setKotStates((current) => ({
+    ...current,
+    [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+  }));
+}
+
+function handlePreview(order: any, type: "BILL" | "KOT") {
+  openReceiptPreview(order, type);
+}
+
+function handleOpenDiscount(order: any) {
+  setDiscountOrder(order);
+}
+
+async function handleSaveDiscount(payload: DiscountPayload) {
+  if (!discountOrder) return;
+  const updated = await updateOrderDiscount(discountOrder.id, payload);
+  setOrders((current) =>
+    current.map((order) => (order.id === discountOrder.id ? { ...order, ...payload, ...updated } : order))
+  );
+}
+
+function handleOpenAddItem(order: any) {
+  setAddItemOrder(order);
+}
+
+function handleItemsAdded(updated: any) {
+  setOrders((current) =>
+    current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order))
+  );
+  setAddItemOrder((current: any) => (current ? { ...current, ...updated } : current));
+}
+
+async function handleCancelOrder(order: any) {
+  const ok = window.confirm(`Cancel Order #${order.orderNumber}? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    await cancelOrder(order.id);
+    setOrders((current) => current.filter((o) => o.id !== order.id));
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Unable to cancel order.");
+  }
 }
 
   return (
@@ -127,29 +215,25 @@ My Orders
     key={order.id}
     order={order}
     buttonText={
-  order.status === "Accepted"
-    ? "Waiting for Kitchen..."
-    : order.status === "Preparing"
-    ? "Preparing..."
-    : order.status === "Ready"
-    ? "🍽 Serve Food"
-    : order.status === "Served"
-    ? "Served"
-    : order.status === "Bill Requested"
-    ? "💰 Payment Done"
-    : order.status === "Payment Done"
+  order.status === "Payment Done"
     ? "End Session"
-    : "Waiting..."
+    : "💰 Payment Done"
 }
    onAction={
-  order.status === "Ready"
-    ? handleServedOrder
-    : order.status === "Bill Requested"
-    ? handlePaymentDone
-    : order.status === "Payment Done"
+  order.status === "Payment Done"
     ? handleEndSession
-    : undefined
+    : handlePaymentDone
 }
+   onDiscount={handleOpenDiscount}
+   onAddItem={handleOpenAddItem}
+   onCancel={handleCancelOrder}
+   onPrintBill={handlePrintBill}
+   onPrintKOT={handlePrintKOT}
+   onRetryBill={handleRetryBill}
+   onRetryKOT={handleRetryKOT}
+   onPreview={handlePreview}
+   billState={billStates[order.id]}
+   kotState={kotStates[order.id]}
   />
 ))}
 
@@ -168,13 +252,6 @@ My Orders
       <div className="grid gap-4">
 
         <button
-          onClick={() => completePayment("UPI")}
-          className="bg-green-600 text-white rounded-xl py-4 font-semibold hover:bg-green-700"
-        >
-          UPI
-        </button>
-
-        <button
           onClick={() => completePayment("Card")}
           className="bg-blue-600 text-white rounded-xl py-4 font-semibold hover:bg-blue-700"
         >
@@ -188,12 +265,40 @@ My Orders
           Cash
         </button>
 
+        <button
+          onClick={() => completePayment("UPI")}
+          className="bg-green-600 text-white rounded-xl py-4 font-semibold hover:bg-green-700"
+        >
+          UPI
+        </button>
+
+        <button
+          onClick={() => completePayment("Zomato")}
+          className="bg-red-600 text-white rounded-xl py-4 font-semibold hover:bg-red-700"
+        >
+          Zomato
+        </button>
+
       </div>
 
     </div>
 
   </div>
 )}
+
+      <DiscountModal
+        open={!!discountOrder}
+        order={discountOrder}
+        onClose={() => setDiscountOrder(null)}
+        onSave={handleSaveDiscount}
+      />
+
+      <AddItemModal
+        open={!!addItemOrder}
+        order={addItemOrder}
+        onClose={() => setAddItemOrder(null)}
+        onItemAdded={handleItemsAdded}
+      />
 
     </div>
 

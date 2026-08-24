@@ -74,7 +74,7 @@ export default function OrderByCaptain() {
   }
 
   return <div className="space-y-8 p-4 sm:p-6 lg:p-8">
-    <div><h1 className="text-3xl font-bold">Order by Captain</h1><p className="text-gray-500 mt-1">Send an order directly to the kitchen.</p></div>
+    <div><h1 className="text-3xl font-bold">Order by Captain</h1><p className="text-gray-500 mt-1">Place an order directly for the waiter to serve and settle.</p></div>
     <div className="grid gap-5 md:grid-cols-3">
       <label className="text-sm font-semibold">Waiter<input value={waiter?.name || ""} disabled className="mt-2 w-full border rounded-xl p-3 font-normal bg-gray-100 text-gray-600" /></label>
       <label className="text-sm font-semibold">Area<select value={area} onChange={(event) => { setArea(event.target.value); setTableId(""); }} className="mt-2 w-full border rounded-xl p-3 font-normal"><option value="">Select area</option>{areas.map((value) => <option key={value} value={value}>{tables.find((table) => table.area === value)?.areaLabel || value}</option>)}</select></label>

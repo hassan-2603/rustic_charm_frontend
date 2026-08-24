@@ -113,6 +113,9 @@ export default function Orders() {
         setDrawerOpen(false);
         setSelectedOrder(null);
       }}
+      onOrderCancelled={(orderId) => {
+        setOrders((current) => current.filter((order) => order.id !== orderId));
+      }}
     />
 
   </div>

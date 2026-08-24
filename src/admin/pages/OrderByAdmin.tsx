@@ -78,7 +78,7 @@ export default function OrderByAdmin() {
   }
 
   return <div className="space-y-8">
-    <div><h1 className="text-3xl font-bold">Order by Admin</h1><p className="text-gray-500 mt-1">Send an order directly to the kitchen.</p></div>
+    <div><h1 className="text-3xl font-bold">Order by Admin</h1><p className="text-gray-500 mt-1">Place an order directly for the waiter to serve and settle.</p></div>
     <div className="grid gap-5 md:grid-cols-3">
       <label className="text-sm font-semibold">Waiter<select value={waiterId} onChange={(event) => setWaiterId(event.target.value)} className="mt-2 w-full border rounded-xl p-3 font-normal"><option value="">Select waiter</option>{waiters.filter((waiter) => waiter.active !== false).map((waiter) => <option key={waiter.id} value={waiter.id}>{waiter.name}</option>)}</select></label>
       <label className="text-sm font-semibold">Area<select value={area} onChange={(event) => { setArea(event.target.value); setTableId(""); }} className="mt-2 w-full border rounded-xl p-3 font-normal"><option value="">Select area</option>{areas.map((value) => <option key={value} value={value}>{tables.find((table) => table.area === value)?.areaLabel || value}</option>)}</select></label>

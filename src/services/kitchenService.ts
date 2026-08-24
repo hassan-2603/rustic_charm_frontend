@@ -4,29 +4,13 @@ import { requestStaffJson } from "./staffApi";
 const LOCAL_STORAGE_KEY = "rustic_kitchen_password";
 
 export function listenKitchenOrders(callback: (orders: any[]) => void) {
-  let active = true;
-
-  const load = async () => {
-    try {
-      const data = await requestStaffJson("/orders");
-      const orders = Array.isArray(data)
-        ? data.filter((order: any) => order.orderSource === "admin"
-          ? order.status === "Accepted"
-          : ["Accepted", "Preparing", "Ready"].includes(order.status))
-        : [];
-      if (active) callback(orders);
-    } catch (error) {
-      console.error("Failed to load kitchen orders:", error);
-    }
-  };
-
-  load();
-  const interval = setInterval(load, 5000);
-
-  return () => {
-    active = false;
-    clearInterval(interval);
-  };
+  // Kitchen involvement has been removed from the order flow: orders placed
+  // via the customer app, the admin "Order by Admin" page, and the waiter
+  // "Order by Captain" page all go straight to the waiter for payment and
+  // session close-out. The Kitchen Dashboard intentionally receives no live
+  // orders any more so it can no longer gate or block that flow.
+  callback([]);
+  return () => {};
 }
 
 export async function updateOrderStatus(orderId: string, status: string, extraData: Record<string, any> = {}) {

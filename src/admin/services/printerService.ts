@@ -1,132 +1,78 @@
+// Admin-side printer configuration + printing.
+//
+// IMPORTANT: this file does NOT talk to a printer, an IP address, or a
+// port directly, and never did any browser-to-LAN networking after this
+// change. It only talks to the backend's /api/admin/printers and
+// /api/admin/print-jobs endpoints. The restaurant's print connector
+// (a background service on a restaurant PC) is the only thing that ever
+// reaches an actual printer — see /connector/README.md.
+//
+// The waiter dashboard's printing (../../waiter/services/printerService.ts)
+// calls the exact same shared logic in ../../services/printApi.ts — the
+// two apps never duplicate printer logic between them.
+
+import { requestAdminJson } from "./adminApi";
+import { createPrintApi, type PrintJob, type PrintOutcome } from "../../services/printApi";
+
+export type PrinterConnectionType = "network" | "windows";
+export type PaperWidth = "58mm" | "80mm";
+
 export type PrinterSettings = {
   printerName: string;
-  connectionType: "network" | "windows";
+  connectionType: PrinterConnectionType;
   ipAddress: string;
-  port: number;
-  paperWidth: "80mm";
+  port: number | null;
+  paperWidth: PaperWidth;
+  copies: number;
   autoCut: boolean;
+  autoPrint: boolean;
 };
 
-export const DEFAULT_PRINTER_SETTINGS: PrinterSettings = {
-  printerName: "Rustic Charm Printer",
-  connectionType: "network",
-  ipAddress: "",
-  port: 9100,
-  paperWidth: "80mm",
-  autoCut: true,
+export type PrinterStatus = PrinterSettings & {
+  configured: boolean;
+  status: "READY" | "OFFLINE";
+  lastSeenAt: string | null;
 };
 
-export const BILL_PRINTER_SETTINGS: PrinterSettings = {
-  printerName: "80 Printer",
-  connectionType: "network",
-  ipAddress: "192.168.0.20",
-  port: 9100,
-  paperWidth: "80mm",
-  autoCut: true,
-};
+export type PrinterType = "bill" | "kot";
 
-export const KOT_PRINTER_SETTINGS: PrinterSettings = {
-  printerName: "KOT",
-  connectionType: "network",
-  ipAddress: "192.168.0.10",
-  port: 9100,
-  paperWidth: "80mm",
-  autoCut: true,
-};
+const printApi = createPrintApi((path, options) => requestAdminJson(path, options));
 
-const STORAGE_KEY = "rustic_charm_printer_settings";
-const CAPTAIN_NAME_KEY = "rustic_charm_captain_name";
-const CONNECTOR_URL = "http://192.168.0.122:17890";
-
-export function getCaptainName() {
-  return localStorage.getItem(CAPTAIN_NAME_KEY) || "";
+/** GET both printers' saved settings + LIVE reachability (not just "configured"). */
+export async function getPrinters(): Promise<{ bill: PrinterStatus | null; kot: PrinterStatus | null }> {
+  return requestAdminJson("/printers");
 }
 
-export function saveCaptainName(name: string) {
-  localStorage.setItem(CAPTAIN_NAME_KEY, name.trim());
-}
-
-export function getPrinterSettings(): PrinterSettings {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return { ...DEFAULT_PRINTER_SETTINGS, ...saved };
-  } catch {
-    return DEFAULT_PRINTER_SETTINGS;
-  }
-}
-
-export function savePrinterSettings(settings: PrinterSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-}
-
-function toPrintBill(order: any) {
-  return {
-    orderNumber: order.orderNumber,
-    tableNumber: order.tableLabel || order.tableReference || order.tableNumber,
-    customerName: order.customerName,
-    customerPhone: order.customerPhone,
-    waiterName: order.waiterName,
-    date: (order.createdAt?.toDate?.() || new Date()).toLocaleString(),
-    items: (order.items || []).map((item: any) => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: Number(item.price || 0),
-      amount: item.price * item.quantity,
-    })),
-    total: order.total,
-    discountAmount: order.discountAmount || 0,
-    finalTotal: order.finalTotal,
-  };
-}
-
-async function connectorRequest(path: string, body: unknown, timeoutMs = 2500) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(`${CONNECTOR_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Print connector failed");
-    return result;
-  } catch (error: any) {
-    if (error?.name === "AbortError") {
-      throw new Error("Print connector not reachable");
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export async function testPrinter(settings: PrinterSettings) {
-  return connectorRequest("/test-print", { settings });
-}
-
-export async function printBillThroughConnector(order: any) {
-  return connectorRequest("/print", {
-    settings: BILL_PRINTER_SETTINGS,
-    printType: "bill",
-    bill: toPrintBill(order),
+export async function savePrinterSettings(type: PrinterType, settings: PrinterSettings): Promise<PrinterStatus> {
+  return requestAdminJson(`/printers/${type}`, {
+    method: "PUT",
+    body: JSON.stringify(settings),
   });
 }
 
-export async function printKOTThroughConnector(order: any) {
-  return connectorRequest("/print", {
-    settings: KOT_PRINTER_SETTINGS,
-    printType: "kot",
-    kot: {
-      orderNumber: order.orderNumber,
-      tableNumber: order.tableLabel || order.tableReference || order.tableNumber,
-      waiterName: order.waiterName,
-      date: (order.createdAt?.toDate?.() || new Date()).toLocaleString(),
-      items: (order.items || []).map((item: any) => ({
-        name: item.name,
-        quantity: item.quantity,
-      })),
-    },
-  });
+/** Test Bill / Test KOT — goes through the real job queue + connector, but never touches an order. */
+export async function testPrinter(type: PrinterType): Promise<PrintOutcome> {
+  const job: PrintJob = await requestAdminJson(`/printers/${type}/test`, { method: "POST" });
+  const finalJob = await printApi.waitForJob(job.id, { timeoutMs: 15000 });
+  if (finalJob.status === "PRINTED") {
+    return { job: finalJob, ok: true, message: "Test print sent successfully." };
+  }
+  return { job: finalJob, ok: false, message: finalJob.errorMessage || "Test print failed." };
+}
+
+/** Admin panel's Print Bill / Print KOT buttons. Same pipeline the waiter uses. */
+export async function printBill(orderId: string): Promise<PrintOutcome> {
+  return printApi.printAndWait(orderId, "BILL");
+}
+
+export async function printKOT(orderId: string): Promise<PrintOutcome> {
+  return printApi.printAndWait(orderId, "KOT");
+}
+
+export async function retryPrint(jobId: string, type: "BILL" | "KOT"): Promise<PrintOutcome> {
+  return printApi.retryAndWait(jobId, type);
+}
+
+export async function getFailedPrintJobs(): Promise<PrintJob[]> {
+  return requestAdminJson("/print-jobs/failed");
 }
