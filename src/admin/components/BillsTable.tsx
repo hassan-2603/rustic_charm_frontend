@@ -1,149 +1,48 @@
+import { useState } from "react";
 import { Printer } from "lucide-react";
-import { printBillThroughConnector } from "../services/printerService";
+import { printBill, retryPrint } from "../services/printerService";
+import { openReceiptPreview } from "../../utils/receiptPreview";
+import type { PrintJob } from "../../services/printApi";
 
 type Props = {
   orders: any[];
 };
 
+type BillPrintState = { printing: boolean; result: "success" | "failed" | null; message?: string };
+
+// Bill printing here goes through the exact same backend print-job queue +
+// restaurant print connector as the Admin Order drawer, the KOT page, and
+// the waiter dashboard (see ../../services/printApi.ts). There is no
+// browser-print fallback: if the connector can't reach the printer, the
+// status below says so honestly (with Retry / Preview), it never silently
+// opens a print dialog or claims a print that didn't happen.
 export default function BillsTable({ orders }: Props) {
-  async function printBill(order: any) {
-    try {
-      await printBillThroughConnector(order);
-      return;
-    } catch (error) {
-      console.warn("Print connector unavailable; opening browser print dialog.", error);
-    }
+  const [billStates, setBillStates] = useState<Record<string, BillPrintState>>({});
+  const [lastJobId, setLastJobId] = useState<Record<string, string>>({});
 
-    const itemsHtml = order.items
-      ?.map(
-        (item: any) => `
-        <tr>
-          <td>${item.name}</td>
-          <td style="text-align:center;">${item.quantity}</td>
-          <td style="text-align:right;">₹${item.price}</td>
-        </tr>
-      `
-      )
-      .join("");
+  async function handlePrintBill(order: any) {
+    setBillStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+    const outcome = await printBill(order.id);
+    if (outcome.job) setLastJobId((current) => ({ ...current, [order.id]: (outcome.job as PrintJob).id }));
+    setBillStates((current) => ({
+      ...current,
+      [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+    }));
+  }
 
-    const win = window.open("", "", "width=420,height=700");
+  async function handleRetryBill(order: any) {
+    const jobId = lastJobId[order.id];
+    if (!jobId) return handlePrintBill(order);
+    setBillStates((current) => ({ ...current, [order.id]: { printing: true, result: null } }));
+    const outcome = await retryPrint(jobId, "BILL");
+    setBillStates((current) => ({
+      ...current,
+      [order.id]: { printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message },
+    }));
+  }
 
-    if (!win) return;
-
-    const hasDiscount = order.discountAmount && order.discountAmount > 0;
-    const discountSectionHtml = hasDiscount
-      ? `
-        <div style="text-align:right; margin-top:10px; font-size:16px;">
-          Food Total: ₹${order.total}
-        </div>
-        <div style="text-align:right; margin-top:5px; font-size:16px; color:#b91c1c;">
-          Discount (${order.discountType === 'percent' ? `${order.discountValue}%` : `₹${order.discountValue}`}): -₹${order.discountAmount}
-        </div>
-        <div class="total">
-          Grand Total : ₹${order.finalTotal}
-        </div>
-      `
-      : `
-        <div class="total">
-          Total : ₹${order.total}
-        </div>
-      `;
-
-    win.document.write(`
-      <html>
-
-      <head>
-
-        <title>Receipt</title>
-
-        <style>
-
-          body{
-            font-family:Arial;
-            padding:20px;
-          }
-
-          h2{
-            text-align:center;
-            margin-bottom:4px;
-            font-weight:normal;
-          }
-
-          p{
-            margin:4px 0;
-          }
-
-          table{
-            width:100%;
-            border-collapse:collapse;
-            margin-top:15px;
-          }
-
-          th,td{
-            padding:8px;
-            border-bottom:1px dashed #999;
-            font-weight:normal;
-          }
-
-          .total{
-            margin-top:20px;
-            font-size:20px;
-            font-weight:normal;
-            text-align:right;
-          }
-
-        </style>
-
-      </head>
-
-      <body>
-
-        <h2>RUSTIC CHARM</h2>
-
-        <p style="text-align:center; margin:0;">RESTRO BAR AND CAFE BY DAAOM</p>
-
-        <p>Order: ${order.orderNumber}</p>
-
-        <p>Waiter: ${order.waiterName}</p>
-
-        <p>Date: ${new Date(
-          order.createdAt.seconds * 1000
-        ).toLocaleString()}</p>
-
-        <table>
-
-          <thead>
-
-            <tr>
-
-              <th align="left">Item</th>
-
-              <th>Qty</th>
-
-              <th align="right">Price</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            ${itemsHtml}
-
-          </tbody>
-
-        </table>
-
-        ${discountSectionHtml}
-
-      </body>
-
-      </html>
-    `);
-
-    win.document.close();
-
-    win.print();
+  function handlePreviewBill(order: any) {
+    openReceiptPreview(order, "BILL");
   }
 
   return (
@@ -171,50 +70,76 @@ export default function BillsTable({ orders }: Props) {
 
         <tbody>
 
-          {orders.map((order) => (
+          {orders.map((order) => {
+            const state = billStates[order.id];
+            const printing = !!state?.printing;
+            const failed = state?.result === "failed";
+            const succeeded = state?.result === "success";
 
-            <tr
-              key={order.id}
-              className="border-t hover:bg-gray-50"
-            >
+            return (
+              <tr
+                key={order.id}
+                className="border-t hover:bg-gray-50"
+              >
 
-              <td className="p-5">
-                {order.orderNumber}
-              </td>
+                <td className="p-5">
+                  {order.orderNumber}
+                </td>
 
-              <td className="p-5">
-                {order.waiterName}
-              </td>
+                <td className="p-5">
+                  {order.waiterName}
+                </td>
 
-              <td className="p-5 font-semibold">
-                ₹{order.finalTotal ?? order.total}
-              </td>
+                <td className="p-5 font-semibold">
+                  ₹{order.finalTotal ?? order.total}
+                </td>
 
-              <td className="p-5">
-                {order.status}
-              </td>
+                <td className="p-5">
+                  {order.status}
+                </td>
 
-              <td className="p-5">
+                <td className="p-5">
 
-                <div className="flex justify-end">
+                  <div className="flex flex-col items-end gap-1">
 
-                  <button
-                    onClick={() => printBill(order)}
-                    className="flex items-center gap-2 bg-olive text-white px-4 py-2 rounded-lg hover:bg-olive/90"
-                  >
-                    <Printer size={18} />
+                    <button
+                      onClick={() => handlePrintBill(order)}
+                      disabled={printing}
+                      className={`flex items-center gap-2 text-white px-4 py-2 rounded-lg transition ${
+                        printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                      }`}
+                    >
+                      <Printer size={18} />
 
-                    Print
+                      {printing ? "Printing..." : "Print"}
 
-                  </button>
+                    </button>
 
-                </div>
+                    {(printing || state?.result) && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={failed ? "text-red-600 font-medium" : succeeded ? "text-green-600 font-medium" : "text-gray-500"}>
+                          {printing ? "Sending bill to printer..." : state?.message}
+                        </span>
+                        {failed && (
+                          <>
+                            <button onClick={() => handleRetryBill(order)} className="underline text-gray-700 hover:text-gray-900">
+                              Retry
+                            </button>
+                            <button onClick={() => handlePreviewBill(order)} className="underline text-gray-700 hover:text-gray-900">
+                              Preview
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
 
-              </td>
+                  </div>
 
-            </tr>
+                </td>
 
-          ))}
+              </tr>
+            );
+          })}
 
         </tbody>
 
