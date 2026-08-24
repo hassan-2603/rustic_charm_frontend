@@ -3,7 +3,7 @@ import StatCard from "../components/StatCard";
 import { listenToOrders } from "../services/orderApi";
 import { listenToTables } from "../services/tableApi";
 import { listenToWaiterCalls } from "../services/waiterApi";
-import { getCaptainName, saveCaptainName } from "../services/printerService";
+import { getCaptainName, saveCaptainName } from "../services/captainService";
 
 
 export default function Dashboard() {
