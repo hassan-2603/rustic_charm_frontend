@@ -4,6 +4,8 @@
 // convenience render in the browser — the real, exact ESC/POS receipt is
 // only ever built server-side / by the connector.
 
+import { splitItemsByCategory } from "./discountUtils";
+
 interface PreviewOptions {
   splits?: any[];
   kotSections?: Record<string, string>;
@@ -36,9 +38,28 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (order.customerName) lines.push(`Customer: ${order.customerName}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push("------------------------------------------");
-    for (const item of order.items || []) {
-      lines.push(`${item.quantity}  ${item.name}  Rs ${item.price}  Rs ${item.price * item.quantity}`);
+
+    // NOTE: If billSections is needed, it would be passed in options, but for preview we can rely on standard splitting.
+    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || [], {});
+
+    if (foodItems.length > 0) {
+      lines.push("--- FOOD ---");
+      for (const item of foodItems) {
+        lines.push(`${item.quantity}  ${item.name}  Rs ${item.price}  Rs ${item.price * item.quantity}`);
+      }
+      lines.push(`Food Subtotal: Rs ${foodTotal}`);
+      lines.push("");
     }
+
+    if (alcoholItems.length > 0) {
+      lines.push("--- LIQUOR ---");
+      for (const item of alcoholItems) {
+        lines.push(`${item.quantity}  ${item.name}  Rs ${item.price}  Rs ${item.price * item.quantity}`);
+      }
+      lines.push(`Liquor Subtotal: Rs ${alcoholTotal}`);
+      lines.push("");
+    }
+
     lines.push("------------------------------------------");
     if (order.discountAmount > 0) lines.push(`DISCOUNT: -Rs ${order.discountAmount}`);
     lines.push(`TOTAL: Rs ${order.finalTotal ?? order.total}`);
