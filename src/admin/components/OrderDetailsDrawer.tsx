@@ -17,6 +17,7 @@ import SplitBillModal from "../../components/SplitBillModal";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
+import { buildPreviewText } from "../../utils/receiptPreview";
 
 import StatusBadge from "./StatusBadge";
 
@@ -46,6 +47,7 @@ export default function OrderDetailsDrawer({
   const [isRemoveItemOpen, setIsRemoveItemOpen] = useState(false);
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [previewContent, setPreviewContent] = useState<{ type: "BILL" | "KOT", text: string } | null>(null);
   const [, forceUpdate] = useState(0);
 
   const areas = useMemo(() => [...new Set(tables.map((table) => table.area))], [tables]);
@@ -150,6 +152,11 @@ export default function OrderDetailsDrawer({
   // the status here says so honestly (with Retry), it never silently opens
   // a browser print dialog instead.
   async function handlePrintBill() {
+    if (previewContent?.type !== "BILL") {
+      setPreviewContent({ type: "BILL", text: buildPreviewText(order, "BILL") });
+      return;
+    }
+    setPreviewContent(null);
     setBillState({ printing: true, result: null });
     const outcome = await printBill(order.id);
     if (outcome.job) setLastJobId((current) => ({ ...current, BILL: (outcome.job as PrintJob).id }));
@@ -157,6 +164,11 @@ export default function OrderDetailsDrawer({
   }
 
   async function handlePrintKOT() {
+    if (previewContent?.type !== "KOT") {
+      setPreviewContent({ type: "KOT", text: buildPreviewText(order, "KOT") });
+      return;
+    }
+    setPreviewContent(null);
     setKotState({ printing: true, result: null });
     const outcome = await printKOT(order.id);
     if (outcome.job) setLastJobId((current) => ({ ...current, KOT: (outcome.job as PrintJob).id }));
@@ -532,16 +544,24 @@ export default function OrderDetailsDrawer({
               {hasDiscount ? "Edit Discount" : "Apply Discount"}
             </button>
 
+            {previewContent && (
+              <div className="bg-gray-50 border p-4 rounded-xl max-h-64 overflow-y-auto w-full">
+                <pre className="text-xs font-mono text-gray-800 whitespace-pre">
+                  {previewContent.text}
+                </pre>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4">
 
               <div className="flex-1 flex flex-col gap-1">
                 <button
                   onClick={handlePrintBill}
                   disabled={billState.printing}
-                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${billState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${billState.printing ? "bg-olive/70 cursor-wait" : previewContent?.type === "BILL" ? "bg-green-600 hover:bg-green-700" : "bg-olive hover:bg-olive/90"
                     }`}
                 >
-                  {billState.printing ? "Printing Bill..." : "Print Bill"}
+                  {billState.printing ? "Printing Bill..." : previewContent?.type === "BILL" ? "Confirm Print Bill" : "Print Bill"}
                 </button>
                 {(billState.printing || billState.result) && (
                   <div className="flex items-center gap-2 text-xs">
@@ -561,10 +581,10 @@ export default function OrderDetailsDrawer({
                 <button
                   onClick={handlePrintKOT}
                   disabled={kotState.printing}
-                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${kotState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${kotState.printing ? "bg-olive/70 cursor-wait" : previewContent?.type === "KOT" ? "bg-green-600 hover:bg-green-700" : "bg-olive hover:bg-olive/90"
                     }`}
                 >
-                  {kotState.printing ? "Printing KOT..." : "Print KOT"}
+                  {kotState.printing ? "Printing KOT..." : previewContent?.type === "KOT" ? "Confirm Print KOT" : "Print KOT"}
                 </button>
                 {(kotState.printing || kotState.result) && (
                   <div className="flex items-center gap-2 text-xs">
