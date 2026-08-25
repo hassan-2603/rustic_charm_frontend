@@ -82,3 +82,10 @@ export async function cancelOrder(orderId: string) {
     method: "DELETE",
   });
 }
+
+export async function updateOrderSplits(orderId: string, splits: any[]) {
+  return await requestAdminJson(`${BASE}/${orderId}/splits`, {
+    method: "POST",
+    body: JSON.stringify({ splits }),
+  });
+}

@@ -8,11 +8,12 @@ import {
   ShoppingBag,
   Percent,
 } from "lucide-react";
-import { updateOrder, updateOrderDiscount, cancelOrder } from "../services/orderService";
+import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits } from "../services/orderService";
 import { listenTables } from "../services/tableApi";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
 import type { PrintJob } from "../../services/printApi";
 import DiscountModal from "../../components/DiscountModal";
+import SplitBillModal from "../../components/SplitBillModal";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
@@ -43,6 +44,7 @@ export default function OrderDetailsDrawer({
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [isRemoveItemOpen, setIsRemoveItemOpen] = useState(false);
+  const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [, forceUpdate] = useState(0);
 
@@ -136,6 +138,10 @@ export default function OrderDetailsDrawer({
   async function handleSaveDiscount(payload: DiscountPayload) {
     await updateOrderDiscount(order.id, payload);
     Object.assign(order, payload);
+  }
+
+  async function handleSaveSplit(splits: any[]) {
+    await updateOrderSplits(order.id, splits);
   }
 
   // Print Bill / Print KOT: both go through the exact same backend job
@@ -252,17 +258,16 @@ export default function OrderDetailsDrawer({
               </span>
 
               <span
-                className={`ml-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                  order.paymentMethod === "UPI"
-                    ? "bg-green-100 text-green-700"
-                    : order.paymentMethod === "Card"
+                className={`ml-2 px-3 py-1 rounded-full text-xs font-semibold ${order.paymentMethod === "UPI"
+                  ? "bg-green-100 text-green-700"
+                  : order.paymentMethod === "Card"
                     ? "bg-blue-100 text-blue-700"
                     : order.paymentMethod === "Cash"
-                    ? "bg-orange-100 text-orange-700"
-                    : order.paymentMethod === "Zomato"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                      ? "bg-orange-100 text-orange-700"
+                      : order.paymentMethod === "Zomato"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-600"
+                  }`}
               >
                 {order.paymentMethod || "Not Paid"}
               </span>
@@ -282,23 +287,32 @@ export default function OrderDetailsDrawer({
                 Ordered Items
               </span>
 
-              <span className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddItemOpen(true)}
-                  className="text-sm font-semibold text-olive border border-olive rounded-lg px-3 py-1.5 hover:bg-olive/5 transition"
-                >
-                  + Add Item
-                </button>
+              <div className="flex flex-col flex-wrap justify-end gap-2">
+                <span className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddItemOpen(true)}
+                    className="text-sm font-semibold text-olive border border-olive rounded-lg px-3 py-1.5 hover:bg-olive/5 transition"
+                  >
+                    + Add Item
+                  </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setIsRemoveItemOpen(true)}
+                    className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+                  >
+                    − Remove Item
+                  </button>
+                </span>
                 <button
                   type="button"
-                  onClick={() => setIsRemoveItemOpen(true)}
-                  className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+                  onClick={() => setIsSplitBillOpen(true)}
+                  className="text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition w-full"
                 >
-                  − Remove Item
+                  Split Bill
                 </button>
-              </span>
+              </div>
 
             </h3>
 
@@ -524,9 +538,8 @@ export default function OrderDetailsDrawer({
                 <button
                   onClick={handlePrintBill}
                   disabled={billState.printing}
-                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${
-                    billState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
-                  }`}
+                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${billState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                    }`}
                 >
                   {billState.printing ? "Printing Bill..." : "Print Bill"}
                 </button>
@@ -548,9 +561,8 @@ export default function OrderDetailsDrawer({
                 <button
                   onClick={handlePrintKOT}
                   disabled={kotState.printing}
-                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${
-                    kotState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
-                  }`}
+                  className={`w-full text-white py-3 rounded-xl font-semibold transition ${kotState.printing ? "bg-olive/70 cursor-wait" : "bg-olive hover:bg-olive/90"
+                    }`}
                 >
                   {kotState.printing ? "Printing KOT..." : "Print KOT"}
                 </button>
@@ -592,11 +604,10 @@ export default function OrderDetailsDrawer({
                   key={method}
                   type="button"
                   onClick={() => setSelectedPaymentMethod(method)}
-                  className={`py-3 rounded-xl font-semibold border transition ${
-                    selectedPaymentMethod === method
-                      ? "bg-olive text-white border-olive"
-                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                  }`}
+                  className={`py-3 rounded-xl font-semibold border transition ${selectedPaymentMethod === method
+                    ? "bg-olive text-white border-olive"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                    }`}
                 >
                   {method}
                 </button>
@@ -637,6 +648,13 @@ export default function OrderDetailsDrawer({
         order={order}
         onClose={() => setIsRemoveItemOpen(false)}
         onItemsRemoved={handleRemovedItems}
+      />
+
+      <SplitBillModal
+        open={isSplitBillOpen}
+        order={order}
+        onClose={() => setIsSplitBillOpen(false)}
+        onSave={handleSaveSplit}
       />
 
     </div>

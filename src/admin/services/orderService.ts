@@ -7,4 +7,5 @@ export {
   addOrderItems,
   removeOrderItems,
   cancelOrder,
+  updateOrderSplits,
 } from "./orderApi";
