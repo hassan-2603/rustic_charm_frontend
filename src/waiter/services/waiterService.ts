@@ -9,10 +9,10 @@ export async function loginWaiter(identifier: string, pin: string) {
   const waiters = await requestAdminJson("/waiters");
   const matchedDoc = Array.isArray(waiters)
     ? waiters.find((waiter: any) => {
-        const idMatches = String(waiter.id || "").trim().toLowerCase() === trimmedIdentifier.toLowerCase();
-        const nameMatches = String(waiter.name || "").trim().toLowerCase() === trimmedIdentifier.toLowerCase();
-        return idMatches || nameMatches;
-      })
+      const idMatches = String(waiter.id || "").trim().toLowerCase() === trimmedIdentifier.toLowerCase();
+      const nameMatches = String(waiter.name || "").trim().toLowerCase() === trimmedIdentifier.toLowerCase();
+      return idMatches || nameMatches;
+    })
     : null;
 
   if (!matchedDoc) {
@@ -176,8 +176,23 @@ export async function addOrderItems(
   });
 }
 
+export async function removeOrderItems(orderId: string, itemIds: string[]) {
+  return requestAdminJson(`/orders/${orderId}/items`, {
+    method: "DELETE",
+    body: JSON.stringify({ itemIds }),
+  });
+}
+
 export async function cancelOrder(orderId: string) {
   return requestAdminJson(`/orders/${orderId}`, {
     method: "DELETE",
+  });
+}
+
+
+export async function updateOrderSplits(orderId: string, splits: any[]) {
+  return requestAdminJson(`/orders/${orderId}/splits`, {
+    method: "POST",
+    body: JSON.stringify({ splits }),
   });
 }

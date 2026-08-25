@@ -20,8 +20,10 @@ interface Props {
   onPreview?: (order: any, type: "BILL" | "KOT") => void;
   billState?: PrintButtonState;
   kotState?: PrintButtonState;
+  onSplit?: (order: any) => void;
   onDiscount?: (order: any) => void;
   onAddItem?: (order: any) => void;
+  onRemoveItem?: (order: any) => void;
   onCancel?: (order: any) => void;
 }
 
@@ -88,8 +90,10 @@ export default function OrderCard({
   onPreview,
   billState,
   kotState,
+  onSplit,
   onDiscount,
   onAddItem,
+  onRemoveItem,
   onCancel,
 }: Props) {
   const hasDiscount = Boolean(order.discountAmount && order.discountAmount > 0);
@@ -176,6 +180,16 @@ export default function OrderCard({
             </button>
           )}
 
+
+          {onSplit && (
+            <button
+              onClick={() => onSplit(order)}
+              className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              Split Bill
+            </button>
+          )}
+
           {onDiscount && (
             <button
               onClick={() => onDiscount(order)}
@@ -192,6 +206,15 @@ export default function OrderCard({
               className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
             >
               + Add Item
+            </button>
+          )}
+
+          {onRemoveItem && (
+            <button
+              onClick={() => onRemoveItem(order)}
+              className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-red-600 border-red-300 hover:bg-red-50"
+            >
+              − Remove Item
             </button>
           )}
 

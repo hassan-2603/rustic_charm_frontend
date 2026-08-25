@@ -14,6 +14,7 @@ import { printBill, printKOT, retryPrint } from "../services/printerService";
 import type { PrintJob } from "../../services/printApi";
 import DiscountModal from "../../components/DiscountModal";
 import AddItemModal from "./AddItemModal";
+import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
 
 import StatusBadge from "./StatusBadge";
@@ -41,6 +42,7 @@ export default function OrderDetailsDrawer({
   const [lastJobId, setLastJobId] = useState<{ BILL?: string; KOT?: string }>({});
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
+  const [isRemoveItemOpen, setIsRemoveItemOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [, forceUpdate] = useState(0);
 
@@ -102,6 +104,11 @@ export default function OrderDetailsDrawer({
   }
 
   async function handleAddedItems(updated: any) {
+    Object.assign(order, updated);
+    forceUpdate((n) => n + 1);
+  }
+
+  async function handleRemovedItems(updated: any) {
     Object.assign(order, updated);
     forceUpdate((n) => n + 1);
   }
@@ -275,13 +282,23 @@ export default function OrderDetailsDrawer({
                 Ordered Items
               </span>
 
-              <button
-                type="button"
-                onClick={() => setIsAddItemOpen(true)}
-                className="text-sm font-semibold text-olive border border-olive rounded-lg px-3 py-1.5 hover:bg-olive/5 transition"
-              >
-                + Add Item
-              </button>
+              <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddItemOpen(true)}
+                  className="text-sm font-semibold text-olive border border-olive rounded-lg px-3 py-1.5 hover:bg-olive/5 transition"
+                >
+                  + Add Item
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsRemoveItemOpen(true)}
+                  className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+                >
+                  − Remove Item
+                </button>
+              </span>
 
             </h3>
 
@@ -613,6 +630,13 @@ export default function OrderDetailsDrawer({
         order={order}
         onClose={() => setIsAddItemOpen(false)}
         onItemAdded={handleAddedItems}
+      />
+
+      <RemoveItemModal
+        open={isRemoveItemOpen}
+        order={order}
+        onClose={() => setIsRemoveItemOpen(false)}
+        onItemsRemoved={handleRemovedItems}
       />
 
     </div>

@@ -58,21 +58,38 @@ export function createPrintApi(request: Requester) {
     return { id: jobId, type: "BILL", status: "FAILED", errorMessage: "Timed out waiting for the printer to respond. It may still print — check the printer or retry." };
   }
 
-  /**
-   * The single entry point both dashboards call: printBill(orderId) /
-   * printKOT(orderId) from the architecture spec. Creates the job, waits
-   * for a real result, and returns an honest, non-lying status message —
-   * never "Printed successfully" unless the connector actually reported
-   * PRINTED.
-   */
   async function printAndWait(orderId: string, type: "BILL" | "KOT", extra: Record<string, unknown> = {}): Promise<PrintOutcome> {
-    let job: PrintJob;
+    let result: PrintJob | PrintJob[];
     try {
-      job = await createPrintJob(orderId, type, extra);
+      result = await request("/print-jobs", {
+        method: "POST",
+        body: JSON.stringify({ orderId, type, ...extra }),
+      });
     } catch (error) {
       return { job: null, ok: false, message: error instanceof Error ? error.message : "Unable to create the print job." };
     }
-    const finalJob = await waitForJob(job.id);
+
+    // Support backend returning either a single job or an array of section KOT jobs
+    const jobs = Array.isArray(result) ? result : [result];
+
+    // If there were no items to print
+    if (jobs.length === 0) {
+      return { job: null, ok: true, message: `No items to print for ${type === "BILL" ? "Bill" : "KOT"}` };
+    }
+
+    let finalJob = jobs[0];
+    let allOk = true;
+
+    for (const j of jobs) {
+      const fj = await waitForJob(j.id);
+      if (fj.status !== "PRINTED") {
+        allOk = false;
+        finalJob = fj; // capture the failure
+        break; // break early on first failure
+      }
+      finalJob = fj;
+    }
+
     return interpretJob(finalJob, type);
   }
 

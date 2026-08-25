@@ -70,6 +70,13 @@ export async function addOrderItems(
   });
 }
 
+export async function removeOrderItems(orderId: string, itemIds: string[]) {
+  return await requestAdminJson(`${BASE}/${orderId}/items`, {
+    method: "DELETE",
+    body: JSON.stringify({ itemIds }),
+  });
+}
+
 export async function cancelOrder(orderId: string) {
   return await requestAdminJson(`${BASE}/${orderId}`, {
     method: "DELETE",

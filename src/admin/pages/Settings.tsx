@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Printer, Settings as SettingsIcon, Globe, CheckCircle2, XCircle } from "lucide-react";
+import { Printer, Settings as SettingsIcon, Globe, CheckCircle2, XCircle, LayoutList, FileText } from "lucide-react";
+import { getCategories } from "../services/categoryService";
+import { getKotSections, setKotSections, getBillSections, setBillSections } from "../../services/settingsService";
 import { translateEntireMenu } from "../services/translateMenu";
 import {
   getPrinters,
@@ -93,9 +95,8 @@ function PrinterSection({
           {title}
         </h2>
         <span
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-            isReady ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-          }`}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isReady ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}
         >
           {isReady ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
           {isReady ? "READY" : "OFFLINE"}
@@ -156,6 +157,176 @@ function PrinterSection({
           {testing ? `Testing ${title}...` : `Test ${title}`}
         </button>
         {message && <span className={`text-sm ${messageOk ? "text-green-700" : "text-red-600"}`}>{message}</span>}
+      </div>
+    </div>
+  );
+}
+
+function KotSectionSettings() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const sections = ["Food", "Bar & Beverages", "Indian Tandoor"];
+
+  useEffect(() => {
+    Promise.all([getCategories(), getKotSections()])
+      .then(([cats, conf]) => {
+        setCategories(cats);
+        setConfig(conf);
+        setLoading(false);
+      });
+  }, []);
+
+  function handleAssign(categoryId: string, section: string) {
+    setConfig(prev => {
+      const next = { ...prev };
+      if (next[categoryId] === section) {
+        delete next[categoryId];
+      } else {
+        next[categoryId] = section;
+      }
+      return next;
+    });
+    setMessage(""); // clear previous messages
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setMessage("");
+    try {
+      await setKotSections(config);
+      setMessage("KOT Sections saved successfully.");
+    } catch (e) {
+      setMessage("Failed to save KOT sections.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="border rounded-2xl p-6 mb-6 text-gray-500">Loading KOT Sections...</div>;
+
+  return (
+    <div className="border rounded-2xl p-6 mb-8 mt-8">
+      <h2 className="text-xl font-bold flex items-center gap-2 mb-2">
+        <LayoutList size={22} />
+        KOT Sections
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Click categories to assign them to a KOT section. During printing, ordered items will be automatically divided and printed as separate KOTs for each section.
+      </p>
+
+      {sections.map(section => (
+        <div key={section} className="mb-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+          <h3 className="font-semibold text-gray-800 border-b pb-2 mb-3 uppercase tracking-wider text-sm">{section}</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {categories.map(c => {
+              const isChecked = config[c.id] === section;
+              const cName = typeof c.name === 'object' ? c.name.English || c.name.en || Object.values(c.name)[0] : c.name;
+              return (
+                <label key={c.id} className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors select-none ${isChecked ? 'bg-olive/10 border-olive text-olive font-medium shadow-sm' : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'}`}>
+                  <input type="checkbox" className="hidden" checked={isChecked} onChange={() => handleAssign(c.id, section)} />
+                  <div className={`w-4 h-4 rounded appearance-none border flex items-center justify-center ${isChecked ? 'bg-olive border-olive' : 'bg-white border-gray-300'}`}>
+                    {isChecked && <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={4} />}
+                  </div>
+                  <span className="truncate flex-1 text-sm">{cName}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-4 mt-6">
+        <button onClick={handleSave} disabled={saving} className="bg-olive text-white px-6 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow active:scale-[0.98] transition-all disabled:opacity-60">
+          {saving ? "Saving..." : "Save KOT Sections"}
+        </button>
+        {message && <span className={`text-sm font-medium ${message.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>{message}</span>}
+      </div>
+    </div>
+  );
+}
+
+function BillSectionSettings() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [config, setConfig] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const sections = ["Food", "Liquor"];
+
+  useEffect(() => {
+    Promise.all([getCategories(), getBillSections()])
+      .then(([cats, conf]) => {
+        setCategories(cats);
+        setConfig(conf);
+        setLoading(false);
+      });
+  }, []);
+
+  function handleAssign(categoryId: string, section: string) {
+    setConfig(prev => {
+      const next = { ...prev };
+      if (next[categoryId] === section) {
+        delete next[categoryId];
+      } else {
+        next[categoryId] = section;
+      }
+      return next;
+    });
+    setMessage(""); // clear previous messages
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setMessage("");
+    try {
+      await setBillSections(config);
+      setMessage("Bill Sections saved successfully.");
+    } catch (e) {
+      setMessage("Failed to save Bill sections.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className="border rounded-2xl p-6 mb-6 text-gray-500">Loading Bill Sections...</div>;
+
+  return (
+    <div className="border rounded-2xl p-6 mb-8 mt-8">
+      <h2 className="text-xl font-bold flex items-center gap-2 mb-2">
+        <FileText size={22} />
+        Bill Print Sections
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Assign categories to Food or Liquor. During printing, ordered items will be automatically divided into these two sections under a single bill. Categories not assigned will default to Food.
+      </p>
+
+      {sections.map(section => (
+        <div key={section} className="mb-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+          <h3 className="font-semibold text-gray-800 border-b pb-2 mb-3 uppercase tracking-wider text-sm">{section}</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {categories.map(c => {
+              const isChecked = config[c.id] === section;
+              const cName = typeof c.name === 'object' ? c.name.English || c.name.en || Object.values(c.name)[0] : c.name;
+              return (
+                <label key={c.id} className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors select-none ${isChecked ? 'bg-olive/10 border-olive text-olive font-medium shadow-sm' : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'}`}>
+                  <input type="checkbox" className="hidden" checked={isChecked} onChange={() => handleAssign(c.id, section)} />
+                  <div className={`w-4 h-4 rounded appearance-none border flex items-center justify-center ${isChecked ? 'bg-olive border-olive' : 'bg-white border-gray-300'}`}>
+                    {isChecked && <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={4} />}
+                  </div>
+                  <span className="truncate flex-1 text-sm">{cName}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-4 mt-6">
+        <button onClick={handleSave} disabled={saving} className="bg-olive text-white px-6 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow active:scale-[0.98] transition-all disabled:opacity-60">
+          {saving ? "Saving..." : "Save Bill Sections"}
+        </button>
+        {message && <span className={`text-sm font-medium ${message.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>{message}</span>}
       </div>
     </div>
   );
@@ -239,7 +410,10 @@ export default function Settings() {
           </>
         )}
 
-        <div className="border rounded-2xl p-6 flex items-center justify-between">
+        <KotSectionSettings />
+        <BillSectionSettings />
+
+        <div className="border rounded-2xl p-6 flex items-center justify-between mt-8">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Globe size={20} />

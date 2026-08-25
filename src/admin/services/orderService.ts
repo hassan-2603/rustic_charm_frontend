@@ -5,5 +5,6 @@ export {
   updateOrder,
   updateOrderDiscount,
   addOrderItems,
+  removeOrderItems,
   cancelOrder,
 } from "./orderApi";
