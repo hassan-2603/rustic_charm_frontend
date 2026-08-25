@@ -8,16 +8,17 @@ import {
   ShoppingBag,
   Percent,
 } from "lucide-react";
-import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits } from "../services/orderService";
+import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables } from "../services/tableApi";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
+import { getKotSections } from "../../services/settingsService";
 import type { PrintJob } from "../../services/printApi";
 import DiscountModal from "../../components/DiscountModal";
 import SplitBillModal from "../../components/SplitBillModal";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
-import { buildPreviewText } from "../../utils/receiptPreview";
+import { buildPreviewTexts } from "../../utils/receiptPreview";
 
 import StatusBadge from "./StatusBadge";
 
@@ -153,7 +154,13 @@ export default function OrderDetailsDrawer({
   // a browser print dialog instead.
   async function handlePrintBill() {
     if (previewContent?.type !== "BILL") {
-      setPreviewContent({ type: "BILL", text: buildPreviewText(order, "BILL") });
+      let splits = [];
+      try {
+        splits = await getOrderSplits(order.id);
+      } catch (err) { }
+
+      const texts = buildPreviewTexts(order, "BILL", { splits });
+      setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
       return;
     }
     setPreviewContent(null);
@@ -165,7 +172,13 @@ export default function OrderDetailsDrawer({
 
   async function handlePrintKOT() {
     if (previewContent?.type !== "KOT") {
-      setPreviewContent({ type: "KOT", text: buildPreviewText(order, "KOT") });
+      let kotSections = {};
+      try {
+        kotSections = await getKotSections();
+      } catch (err) { }
+
+      const texts = buildPreviewTexts(order, "KOT", { kotSections });
+      setPreviewContent({ type: "KOT", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
       return;
     }
     setPreviewContent(null);
@@ -546,7 +559,7 @@ export default function OrderDetailsDrawer({
 
             {previewContent && (
               <div className="bg-gray-50 border p-4 rounded-xl max-h-64 overflow-y-auto w-full">
-                <pre className="text-xs font-mono text-gray-800 whitespace-pre">
+                <pre className={`font-mono text-gray-800 whitespace-pre ${previewContent.type === "KOT" ? "text-sm" : "text-xs"}`}>
                   {previewContent.text}
                 </pre>
               </div>

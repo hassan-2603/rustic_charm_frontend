@@ -89,3 +89,7 @@ export async function updateOrderSplits(orderId: string, splits: any[]) {
     body: JSON.stringify({ splits }),
   });
 }
+
+export async function getOrderSplits(orderId: string) {
+  return await requestAdminJson(`${BASE}/${orderId}/splits`);
+}
