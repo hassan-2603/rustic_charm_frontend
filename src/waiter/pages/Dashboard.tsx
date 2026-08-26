@@ -167,6 +167,7 @@ export default function Dashboard() {
       current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order))
     );
     setAddItemOrder((current: any) => (current ? { ...current, ...updated } : current));
+    openReceiptPreview(updated, "BILL");
   }
 
   function handleOpenRemoveItem(order: any) {
@@ -178,6 +179,7 @@ export default function Dashboard() {
       current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order))
     );
     setRemoveItemOrder((current: any) => (current ? { ...current, ...updated } : current));
+    openReceiptPreview(updated, "BILL");
   }
 
   function handleOpenSplit(order: any) {

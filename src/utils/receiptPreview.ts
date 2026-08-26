@@ -65,30 +65,32 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (foodItems.length > 0) {
       lines.push("--- FOOD ---");
       for (const item of foodItems) {
-        const namePad = item.name.padEnd(22, " ");
+        const namePad = item.name.length > 22 ? item.name.substring(0, 22) : item.name.padEnd(22, " ");
         const qtyPad = String(item.quantity).padStart(3, " ");
         const amtPad = String(item.price * item.quantity).padStart(6, " ");
         lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
-      lines.push(`Food Subtotal: Rs ${foodTotal}`);
+      lines.push(`${"Food Subtotal:".padEnd(29, " ")} Rs ${String(foodTotal).padStart(6, " ")}`);
       lines.push("");
     }
 
     if (alcoholItems.length > 0) {
       lines.push("--- LIQUOR ---");
       for (const item of alcoholItems) {
-        const namePad = item.name.padEnd(22, " ");
+        const namePad = item.name.length > 22 ? item.name.substring(0, 22) : item.name.padEnd(22, " ");
         const qtyPad = String(item.quantity).padStart(3, " ");
         const amtPad = String(item.price * item.quantity).padStart(6, " ");
         lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
-      lines.push(`Liquor Subtotal: Rs ${alcoholTotal}`);
+      lines.push(`${"Liquor Subtotal:".padEnd(29, " ")} Rs ${String(alcoholTotal).padStart(6, " ")}`);
       lines.push("");
     }
 
     lines.push("------------------------------------------");
-    if (order.discountAmount > 0) lines.push(`DISCOUNT: -Rs ${order.discountAmount}`);
-    lines.push(`TOTAL: Rs ${order.finalTotal ?? order.total}`);
+    if (order.discountAmount > 0) {
+      lines.push(`${"DISCOUNT:".padEnd(28, " ")}-Rs ${String(order.discountAmount).padStart(6, " ")}`);
+    }
+    lines.push(`${"TOTAL:".padEnd(29, " ")} Rs ${String(order.finalTotal ?? order.total).padStart(6, " ")}`);
   }
 
   lines.push("");

@@ -19,7 +19,7 @@ import EditItemPricesModal from "../../components/EditItemPricesModal";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
-import { buildPreviewTexts } from "../../utils/receiptPreview";
+import { buildPreviewTexts, openReceiptPreview } from "../../utils/receiptPreview";
 import { updateOrderItemPrices } from "../services/orderApi";
 
 import StatusBadge from "./StatusBadge";
@@ -114,11 +114,13 @@ export default function OrderDetailsDrawer({
   async function handleAddedItems(updated: any) {
     Object.assign(order, updated);
     forceUpdate((n) => n + 1);
+    openReceiptPreview(updated, "BILL");
   }
 
   async function handleRemovedItems(updated: any) {
     Object.assign(order, updated);
     forceUpdate((n) => n + 1);
+    openReceiptPreview(updated, "BILL");
   }
 
   async function handleCancelOrder() {
