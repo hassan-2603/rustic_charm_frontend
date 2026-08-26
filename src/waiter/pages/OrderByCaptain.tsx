@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Search, Trash2 } from "lucide-react";
 import { getMenuItems } from "../../services/customerApi";
 import { listenTables, createCaptainOrder } from "../services/waiterService";
+import { printKOT } from "../services/printerService";
 import { getLocalizedField, getMenuPriceOptions } from "../../types";
 
 type SelectedItem = { item: any; quantity: number };
@@ -16,6 +17,10 @@ export default function OrderByCaptain() {
   const [tableId, setTableId] = useState("");
   const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [placing, setPlacing] = useState(false);
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+  const [printingKot, setPrintingKot] = useState(false);
+  const [description, setDescription] = useState("");
+  const [showDescriptionBox, setShowDescriptionBox] = useState(false);
 
   useEffect(() => {
     getMenuItems().then(setMenuItems).catch(console.error);
@@ -32,6 +37,7 @@ export default function OrderByCaptain() {
   const total = selected.reduce((sum, entry) => sum + getItemPrice(entry.item) * entry.quantity, 0);
 
   function addItem(item: any) {
+    setPlacedOrderId(null);
     setSelected((current) => {
       const existing = current.find((entry) => entry.item.id === item.id);
       if (existing) return current.map((entry) => entry.item.id === item.id ? { ...entry, quantity: entry.quantity + 1 } : entry);
@@ -53,7 +59,7 @@ export default function OrderByCaptain() {
     }
     setPlacing(true);
     try {
-      await createCaptainOrder({
+      const response = await createCaptainOrder({
         tableId: table.id,
         waiterId: waiter.id,
         total,
@@ -63,8 +69,10 @@ export default function OrderByCaptain() {
           quantity,
           price: getItemPrice(item),
         })),
+        description: description.trim() ? description.trim() : undefined,
       });
       setSelected([]);
+      setPlacedOrderId(response.id);
       alert("Order placed successfully.");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Unable to place order.");
@@ -82,7 +90,42 @@ export default function OrderByCaptain() {
     </div>
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="bg-white rounded-2xl border p-5 space-y-5"><div className="relative"><Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search menu..." className="w-full border rounded-xl py-3 pl-11 pr-4" /></div><div className="grid gap-3 sm:grid-cols-2">{filteredItems.map((item) => <button key={item.id} onClick={() => addItem(item)} className="text-left border rounded-xl p-4 hover:border-olive hover:bg-gray-50"><div className="font-semibold">{getLocalizedField(item.name, "English")}</div><div className="text-sm text-gray-500">{item.category || ""}</div><div className="mt-2 font-semibold">₹{item.price || getMenuPriceOptions(item)[0]?.amount || 0}</div></button>)}</div></section>
-      <section className="bg-white rounded-2xl border p-5 h-fit"><h2 className="text-xl font-bold">Selected Items</h2><div className="mt-4 space-y-3">{selected.map(({ item, quantity }) => <div key={item.id} className="border-b pb-3"><div className="flex justify-between gap-3"><span className="font-medium">{getLocalizedField(item.name, "English")}</span><button onClick={() => changeQuantity(item.id, -quantity)} title="Remove item" className="text-red-600"><Trash2 size={17} /></button></div><div className="mt-2 flex items-center justify-between"><span>₹{getItemPrice(item) * quantity}</span><span className="flex items-center gap-2"><button onClick={() => changeQuantity(item.id, -1)} title="Decrease quantity" className="border rounded p-1"><Minus size={15} /></button><span>{quantity}</span><button onClick={() => changeQuantity(item.id, 1)} title="Increase quantity" className="border rounded p-1"><Plus size={15} /></button></span></div></div>)}{selected.length === 0 && <p className="text-gray-500">No items selected.</p>}</div><div className="mt-5 flex justify-between border-t pt-4 font-bold"><span>Total</span><span>₹{total}</span></div><button onClick={placeOrder} disabled={placing} className="mt-5 w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60">{placing ? "Placing..." : "Place Order"}</button></section>
+      <section className="bg-white rounded-2xl border p-5 h-fit"><h2 className="text-xl font-bold">Selected Items</h2><div className="mt-4 space-y-3">{selected.map(({ item, quantity }) => <div key={item.id} className="border-b pb-3"><div className="flex justify-between gap-3"><span className="font-medium">{getLocalizedField(item.name, "English")}</span><button onClick={() => changeQuantity(item.id, -quantity)} title="Remove item" className="text-red-600"><Trash2 size={17} /></button></div><div className="mt-2 flex items-center justify-between"><span>₹{getItemPrice(item) * quantity}</span><span className="flex items-center gap-2"><button onClick={() => changeQuantity(item.id, -1)} title="Decrease quantity" className="border rounded p-1"><Minus size={15} /></button><span>{quantity}</span><button onClick={() => changeQuantity(item.id, 1)} title="Increase quantity" className="border rounded p-1"><Plus size={15} /></button></span></div></div>)}{selected.length === 0 && <p className="text-gray-500">No items selected.</p>}</div><div className="mt-5 flex justify-between border-t pt-4 font-bold"><span>Total</span><span>₹{total}</span></div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button onClick={() => setShowDescriptionBox(!showDescriptionBox)} className="w-full text-olive border-2 border-olive rounded-xl py-3 font-semibold hover:bg-olive/10">{showDescriptionBox ? "Hide Description" : "Add Description"}</button>
+          <button onClick={placeOrder} disabled={placing} className="w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60">{placing ? "Placing..." : "Place Order"}</button>
+        </div>
+        {showDescriptionBox && (
+          <div className="mt-3">
+            <textarea
+              className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-olive"
+              rows={3}
+              placeholder="Add order description (prints on KOT)..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+        )}
+        <button
+          onClick={async () => {
+            if (!placedOrderId) return;
+            setPrintingKot(true);
+            try {
+              const outcome = await printKOT(placedOrderId, waiter?.id);
+              if (outcome.ok) alert("KOT sent to printer!");
+              else alert("Failed to print KOT: " + outcome.message);
+            } catch (err: any) {
+              alert(err.message || "Unable to print KOT");
+            } finally {
+              setPrintingKot(false);
+            }
+          }}
+          disabled={!placedOrderId || printingKot}
+          className="mt-3 w-full bg-white text-gray-800 border-2 border-gray-200 rounded-xl py-3 font-semibold disabled:opacity-50 hover:bg-gray-50"
+        >
+          {printingKot ? "Printing..." : "🖨️ Print KOT"}
+        </button>
+      </section>
     </div>
   </div>;
 }

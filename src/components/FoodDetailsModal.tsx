@@ -84,7 +84,7 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
             <img
               src={item.image || "/placeholder-food.jpg"}
               alt={localizedName}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 via-transparent to-transparent" />

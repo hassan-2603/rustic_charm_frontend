@@ -10,6 +10,7 @@ import { printBill, printKOT, retryPrint } from "../services/printerService";
 import { openReceiptPreview } from "../../utils/receiptPreview";
 import type { DiscountPayload } from "../../utils/discountUtils";
 import type { PrintJob } from "../../services/printApi";
+import EditItemPricesModal from "../../components/EditItemPricesModal";
 
 import {
   listenOrders,
@@ -20,6 +21,7 @@ import {
   updateOrderDiscount,
   cancelOrder,
   updateOrderSplits,
+  updateOrderItemPrices,
 } from "../services/waiterService";
 
 export default function Dashboard() {
@@ -42,6 +44,7 @@ export default function Dashboard() {
 
   const [removeItemOrder, setRemoveItemOrder] = useState<any>(null);
   const [splitOrder, setSplitOrder] = useState<any>(null);
+  const [editPricesOrder, setEditPricesOrder] = useState<any>(null);
 
   useEffect(() => {
 
@@ -68,15 +71,14 @@ export default function Dashboard() {
 
   const myOrders = orders.filter(
     (o: any) =>
-      o.waiterId === waiter.id &&
-      (
-        o.status === "Accepted" ||
-        o.status === "Preparing" ||
-        o.status === "Ready" ||
-        o.status === "Served" ||
-        o.status === "Bill Requested" ||
-        o.status === "Payment Done"
-      )
+    (
+      o.status === "Accepted" ||
+      o.status === "Preparing" ||
+      o.status === "Ready" ||
+      o.status === "Served" ||
+      o.status === "Bill Requested" ||
+      o.status === "Payment Done"
+    )
   );
   function handlePaymentDone(order: any) {
     setPaymentOrder(order);
@@ -187,6 +189,16 @@ export default function Dashboard() {
     await updateOrderSplits(splitOrder.id, splits);
   }
 
+  function handleOpenEditPrices(order: any) {
+    setEditPricesOrder(order);
+  }
+
+  async function handleSavePrices(updates: { id: string; newPrice: number }[]) {
+    if (!editPricesOrder) return;
+    const updatedOrder = await updateOrderItemPrices(editPricesOrder.id, updates);
+    setOrders((current) => current.map((order) => (order.id === editPricesOrder.id ? { ...order, ...updatedOrder } : order)));
+  }
+
   async function handleCancelOrder(order: any) {
     const ok = window.confirm(`Cancel Order #${order.orderNumber}? This cannot be undone.`);
     if (!ok) return;
@@ -251,6 +263,7 @@ export default function Dashboard() {
                   : handlePaymentDone
               }
               onSplit={handleOpenSplit}
+              onEditPrices={handleOpenEditPrices}
               onDiscount={handleOpenDiscount}
               onAddItem={handleOpenAddItem}
               onRemoveItem={handleOpenRemoveItem}
@@ -340,6 +353,13 @@ export default function Dashboard() {
         order={splitOrder}
         onClose={() => setSplitOrder(null)}
         onSave={handleSaveSplit}
+      />
+
+      <EditItemPricesModal
+        open={!!editPricesOrder}
+        order={editPricesOrder}
+        onClose={() => setEditPricesOrder(null)}
+        onSave={handleSavePrices}
       />
 
     </div>

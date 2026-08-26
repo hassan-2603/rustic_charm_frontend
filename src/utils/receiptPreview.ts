@@ -29,8 +29,28 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push(`Table: ${order.tableLabel || order.tableReference || order.tableNumber || "--"}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push("------------------------------------------");
-    for (const item of order.items || []) {
-      lines.push(`${item.quantity}  ${item.name}`);
+    if (order.addedItems && order.addedItems.length > 0) {
+      lines.push("--- ADDED ---");
+      for (const item of order.addedItems) {
+        lines.push(`${item.quantity}  ${item.name}`);
+      }
+    }
+    if (order.removedItems && order.removedItems.length > 0) {
+      lines.push("--- REMOVED ---");
+      for (const item of order.removedItems) {
+        lines.push(`${item.quantity}  ${item.name}`);
+      }
+    }
+    if ((!order.addedItems || order.addedItems.length === 0) && (!order.removedItems || order.removedItems.length === 0)) {
+      for (const item of order.items || []) {
+        lines.push(`${item.quantity}  ${item.name}`);
+      }
+    }
+    if (order.description) {
+      lines.push("------------------------------------------");
+      lines.push("DESCRIPTION:");
+      lines.push(order.description);
+      lines.push("");
     }
   } else {
     lines.push(`Bill No: ${order.orderNumber ?? "--"}`);
@@ -40,12 +60,15 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push("------------------------------------------");
 
     // NOTE: If billSections is needed, it would be passed in options, but for preview we can rely on standard splitting.
-    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || [], {});
+    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
 
     if (foodItems.length > 0) {
       lines.push("--- FOOD ---");
       for (const item of foodItems) {
-        lines.push(`${item.quantity}  ${item.name}  Rs ${item.price}  Rs ${item.price * item.quantity}`);
+        const namePad = item.name.padEnd(22, " ");
+        const qtyPad = String(item.quantity).padStart(3, " ");
+        const amtPad = String(item.price * item.quantity).padStart(6, " ");
+        lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
       lines.push(`Food Subtotal: Rs ${foodTotal}`);
       lines.push("");
@@ -54,7 +77,10 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (alcoholItems.length > 0) {
       lines.push("--- LIQUOR ---");
       for (const item of alcoholItems) {
-        lines.push(`${item.quantity}  ${item.name}  Rs ${item.price}  Rs ${item.price * item.quantity}`);
+        const namePad = item.name.padEnd(22, " ");
+        const qtyPad = String(item.quantity).padStart(3, " ");
+        const amtPad = String(item.price * item.quantity).padStart(6, " ");
+        lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
       lines.push(`Liquor Subtotal: Rs ${alcoholTotal}`);
       lines.push("");
@@ -73,18 +99,68 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
 export function buildPreviewTexts(order: any, type: "BILL" | "KOT", options?: PreviewOptions): { text: string; isKot: boolean }[] {
   if (type === "KOT") {
     const config = options?.kotSections || {};
+
+    let addedItemsOverall: any[] = [];
+    let removedItemsOverall: any[] = [];
+    let isDiffPrint = false;
+
+    if (order.lastPrintedItems) {
+      isDiffPrint = true;
+      const currentItemMap: Record<string, any> = {};
+      for (const item of order.items || []) currentItemMap[item.id] = item;
+      const lastItemMap: Record<string, any> = {};
+      for (const item of order.lastPrintedItems) lastItemMap[item.id] = item;
+
+      for (const item of order.items || []) {
+        const prev = lastItemMap[item.id];
+        if (!prev) addedItemsOverall.push({ ...item });
+        else if (item.quantity > prev.quantity) addedItemsOverall.push({ ...item, quantity: item.quantity - prev.quantity });
+      }
+
+      for (const item of order.lastPrintedItems) {
+        const cur = currentItemMap[item.id];
+        if (!cur) removedItemsOverall.push({ ...item });
+        else if (cur.quantity < item.quantity) removedItemsOverall.push({ ...item, quantity: item.quantity - cur.quantity });
+      }
+
+      if (addedItemsOverall.length === 0 && removedItemsOverall.length === 0) {
+        isDiffPrint = false;
+      }
+    }
+
     const sectionItems: Record<string, any[]> = {};
-    for (const item of order.items || []) {
+    const sectionAddedItems: Record<string, any[]> = {};
+    const sectionRemovedItems: Record<string, any[]> = {};
+
+    const processItemIntoSection = (item: any, mapToUpdate: Record<string, any[]>) => {
       const catId = item.categoryId || item.category_id;
       const sectionName = (catId && config[catId]) ? config[catId] : "Unassigned";
-      if (!sectionItems[sectionName]) sectionItems[sectionName] = [];
-      sectionItems[sectionName].push(item);
+      if (!mapToUpdate[sectionName]) mapToUpdate[sectionName] = [];
+      mapToUpdate[sectionName].push(item);
+    };
+
+    if (isDiffPrint) {
+      for (const item of addedItemsOverall) processItemIntoSection(item, sectionAddedItems);
+      for (const item of removedItemsOverall) processItemIntoSection(item, sectionRemovedItems);
+    } else {
+      for (const item of order.items || []) processItemIntoSection(item, sectionItems);
     }
-    const keys = Object.keys(sectionItems);
+
+    const keys = Array.from(new Set([
+      ...Object.keys(sectionItems),
+      ...Object.keys(sectionAddedItems),
+      ...Object.keys(sectionRemovedItems)
+    ]));
+
     if (keys.length === 0) return [{ text: buildSinglePreviewText(order, type), isKot: true }];
 
     return keys.map(sectionName => ({
-      text: buildSinglePreviewText({ ...order, items: sectionItems[sectionName] }, type, { splitLabel: `Section: ${sectionName}` }),
+      text: buildSinglePreviewText({
+        ...order,
+        items: sectionItems[sectionName] || [],
+        addedItems: sectionAddedItems[sectionName] || [],
+        removedItems: sectionRemovedItems[sectionName] || [],
+      }, type, { splitLabel: `Section: ${sectionName}` }),
       isKot: true
     }));
   } else {

@@ -21,6 +21,7 @@ interface Props {
   billState?: PrintButtonState;
   kotState?: PrintButtonState;
   onSplit?: (order: any) => void;
+  onEditPrices?: (order: any) => void;
   onDiscount?: (order: any) => void;
   onAddItem?: (order: any) => void;
   onRemoveItem?: (order: any) => void;
@@ -49,11 +50,10 @@ function PrintControl({
       <button
         onClick={onPrint}
         disabled={printing}
-        className={`px-5 py-2 rounded-xl font-semibold border transition ${
-          printing
-            ? "bg-gray-100 text-gray-400 cursor-wait"
-            : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
-        }`}
+        className={`px-5 py-2 rounded-xl font-semibold border transition ${printing
+          ? "bg-gray-100 text-gray-400 cursor-wait"
+          : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+          }`}
       >
         {printing ? `Printing ${label}...` : `🖨️ Print ${label}`}
       </button>
@@ -91,6 +91,7 @@ export default function OrderCard({
   billState,
   kotState,
   onSplit,
+  onEditPrices,
   onDiscount,
   onAddItem,
   onRemoveItem,
@@ -187,6 +188,15 @@ export default function OrderCard({
               className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
             >
               Split Bill
+            </button>
+          )}
+
+          {onEditPrices && (
+            <button
+              onClick={() => onEditPrices(order)}
+              className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            >
+              Edit Prices
             </button>
           )}
 

@@ -1060,11 +1060,10 @@ export default function CustomerApp() {
                   <div className="flex gap-3 justify-center mb-6" id="veg-filter-buttons">
                     <button
                       onClick={() => setVegFilter(vegFilter === 'veg' ? null : 'veg')}
-                      className={`px-6 py-2.5 rounded-full text-sm font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center gap-2 border-2 ${
-                        vegFilter === 'veg'
+                      className={`px-6 py-2.5 rounded-full text-sm font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center gap-2 border-2 ${vegFilter === 'veg'
                           ? 'bg-green-600 text-white border-green-800 shadow-lg font-bold scale-105'
                           : 'bg-white border-green-700 text-green-700 hover:bg-green-50 hover:shadow-md active:scale-95'
-                      }`}
+                        }`}
                       id="veg-filter-btn"
                     >
                       <Leaf size={16} />
@@ -1072,11 +1071,10 @@ export default function CustomerApp() {
                     </button>
                     <button
                       onClick={() => setVegFilter(vegFilter === 'non-veg' ? null : 'non-veg')}
-                      className={`px-6 py-2.5 rounded-full text-sm font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center gap-2 border-2 ${
-                        vegFilter === 'non-veg'
+                      className={`px-6 py-2.5 rounded-full text-sm font-semibold tracking-wider uppercase transition-all duration-300 cursor-pointer flex items-center gap-2 border-2 ${vegFilter === 'non-veg'
                           ? 'bg-red-600 text-white border-red-800 shadow-lg font-bold scale-105'
                           : 'bg-white border-red-700 text-red-700 hover:bg-red-50 hover:shadow-md active:scale-95'
-                      }`}
+                        }`}
                       id="non-veg-filter-btn"
                     >
                       <span>Non Veg</span>
@@ -1112,7 +1110,7 @@ export default function CustomerApp() {
                                 <img
                                   src={item.image || "/placeholder-food.jpg"}
                                   alt={itemLocalizedName}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                                 />
 
                                 <div className="absolute top-3 left-3">

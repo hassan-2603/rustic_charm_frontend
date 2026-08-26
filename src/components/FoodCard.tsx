@@ -37,7 +37,7 @@ export default function FoodCard({ item, language, onAddToCart, onClick }: FoodC
         <img
           src={item.image || "/placeholder-food.jpg"}
           alt={localizedName}
-          className="w-full h-full object-cover transform scale-100 group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+          className="w-full h-full object-contain transform scale-100 group-hover:scale-[1.03] transition-transform duration-700 ease-out"
           loading="lazy"
           referrerPolicy="no-referrer"
           id={`food-card-img-${item.id}`}

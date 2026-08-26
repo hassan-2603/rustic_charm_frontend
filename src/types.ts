@@ -121,6 +121,10 @@ export interface MenuItem {
   spiceLevel: 0 | 1 | 2 | 3;
   ingredients: string[];
   isAvailable?: boolean;
+  metadata?: {
+    isMarketPrice?: boolean;
+    [key: string]: any;
+  };
 }
 
 export interface CartItem {
@@ -156,6 +160,10 @@ export function getMenuPriceOptions(item: Partial<MenuItem> | null | undefined):
 }
 
 export function getMenuPriceLabel(item: Partial<MenuItem> | null | undefined): string {
+  if (item && (item as any).metadata?.isMarketPrice) {
+    return "Market Price";
+  }
+
   const options = getMenuPriceOptions(item);
 
   if (options.length === 1) {

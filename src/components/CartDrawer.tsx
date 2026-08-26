@@ -130,7 +130,7 @@ export default function CartDrawer({
                         <img
                           src={item.menuItem.image || "/placeholder-food.jpg"}
                           alt={itemLocalizedName}
-                          className="w-full sm:w-16 h-40 sm:h-16 rounded-xl object-cover border border-light-gray/40 flex-shrink-0"
+                          className="w-full sm:w-16 h-40 sm:h-16 rounded-xl object-contain border border-light-gray/40 flex-shrink-0"
                           referrerPolicy="no-referrer"
                         />
 

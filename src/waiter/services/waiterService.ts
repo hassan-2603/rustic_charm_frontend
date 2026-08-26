@@ -77,6 +77,7 @@ export async function createCaptainOrder(order: {
   waiterId: string;
   items: Array<{ menuItemId: string; name: string; quantity: number; price: number }>;
   total: number;
+  description?: string;
 }) {
   return requestAdminJson("/orders", {
     method: "POST",
@@ -159,6 +160,13 @@ export async function updateOrderStatus(orderId: string, status: string, extraDa
   });
 }
 
+export async function updateOrderItemPrices(orderId: string, updates: { id: string; newPrice: number }[]) {
+  return requestAdminJson(`/orders/${orderId}/items/prices`, {
+    method: "PUT",
+    body: JSON.stringify({ updates }),
+  });
+}
+
 export async function updateOrderDiscount(orderId: string, discountData: Record<string, any>) {
   return requestAdminJson(`/orders/${orderId}`, {
     method: "PUT",
@@ -176,7 +184,7 @@ export async function addOrderItems(
   });
 }
 
-export async function removeOrderItems(orderId: string, itemIds: string[]) {
+export async function removeOrderItems(orderId: string, itemIds: any[]) {
   return requestAdminJson(`/orders/${orderId}/items`, {
     method: "DELETE",
     body: JSON.stringify({ itemIds }),

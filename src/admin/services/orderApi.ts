@@ -49,6 +49,7 @@ export async function createAdminOrder(order: {
   waiterId: string;
   items: Array<{ menuItemId: string; name: string; quantity: number; price: number }>;
   total: number;
+  description?: string;
 }) {
   return requestAdminJson(`${BASE}`, {
     method: "POST",
@@ -58,6 +59,13 @@ export async function createAdminOrder(order: {
 
 export async function updateOrderDiscount(orderId: string, discountData: any) {
   return await updateOrder(orderId, discountData);
+}
+
+export async function updateOrderItemPrices(orderId: string, updates: { id: string; newPrice: number }[]) {
+  return requestAdminJson(`${BASE}/${orderId}/items/prices`, {
+    method: "PUT",
+    body: JSON.stringify({ updates }),
+  });
 }
 
 export async function addOrderItems(
@@ -70,7 +78,7 @@ export async function addOrderItems(
   });
 }
 
-export async function removeOrderItems(orderId: string, itemIds: string[]) {
+export async function removeOrderItems(orderId: string, itemIds: any[]) {
   return await requestAdminJson(`${BASE}/${orderId}/items`, {
     method: "DELETE",
     body: JSON.stringify({ itemIds }),

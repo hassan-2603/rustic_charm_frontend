@@ -37,13 +37,29 @@ function resolveTable(order: any): string {
 }
 
 export function exportOrdersExcel(orders: any[]) {
+  const getEnglishName = (val: any) => {
+    if (!val) return "";
+    if (typeof val === "object") return val.English || Object.values(val)[0] || "";
+    if (typeof val === "string") {
+      try {
+        const parsed = JSON.parse(val);
+        if (typeof parsed === "object" && parsed !== null) {
+          return parsed.English || Object.values(parsed)[0] || val;
+        }
+      } catch {
+        // Not JSON
+      }
+    }
+    return val;
+  };
+
   const rows = orders.map((order) => {
     const foods =
       order.items
         ?.map((item: any) => {
-          const name =
-            typeof item.name === "object" ? item.name.English || Object.values(item.name)[0] : item.name;
-          const category = item.category ? ` (${item.category})` : "";
+          const name = getEnglishName(item.name);
+          const categoryName = getEnglishName(item.category);
+          const category = categoryName ? ` (${categoryName})` : "";
           const note = item.specialInstructions ? ` (${item.specialInstructions})` : "";
           return `${item.quantity} × ${name}${category}${note}`;
         })

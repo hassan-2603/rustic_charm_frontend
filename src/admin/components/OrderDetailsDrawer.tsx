@@ -15,10 +15,12 @@ import { getKotSections } from "../../services/settingsService";
 import type { PrintJob } from "../../services/printApi";
 import DiscountModal from "../../components/DiscountModal";
 import SplitBillModal from "../../components/SplitBillModal";
+import EditItemPricesModal from "../../components/EditItemPricesModal";
 import AddItemModal from "./AddItemModal";
 import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
 import { buildPreviewTexts } from "../../utils/receiptPreview";
+import { updateOrderItemPrices } from "../services/orderApi";
 
 import StatusBadge from "./StatusBadge";
 
@@ -47,6 +49,7 @@ export default function OrderDetailsDrawer({
   const [isAddItemOpen, setIsAddItemOpen] = useState(false);
   const [isRemoveItemOpen, setIsRemoveItemOpen] = useState(false);
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
+  const [isEditPricesOpen, setIsEditPricesOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [previewContent, setPreviewContent] = useState<{ type: "BILL" | "KOT", text: string } | null>(null);
   const [, forceUpdate] = useState(0);
@@ -141,6 +144,12 @@ export default function OrderDetailsDrawer({
   async function handleSaveDiscount(payload: DiscountPayload) {
     await updateOrderDiscount(order.id, payload);
     Object.assign(order, payload);
+  }
+
+  async function handleSavePrices(updates: { id: string; newPrice: number }[]) {
+    const updatedOrder = await updateOrderItemPrices(order.id, updates);
+    Object.assign(order, updatedOrder);
+    forceUpdate((n) => n + 1);
   }
 
   async function handleSaveSplit(splits: any[]) {
@@ -330,13 +339,22 @@ export default function OrderDetailsDrawer({
                     − Remove Item
                   </button>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsSplitBillOpen(true)}
-                  className="text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition w-full"
-                >
-                  Split Bill
-                </button>
+                <span className="flex items-center gap-2 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditPricesOpen(true)}
+                    className="flex-1 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition"
+                  >
+                    Edit Prices
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSplitBillOpen(true)}
+                    className="flex-1 text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition"
+                  >
+                    Split Bill
+                  </button>
+                </span>
               </div>
 
             </h3>
@@ -688,6 +706,13 @@ export default function OrderDetailsDrawer({
         order={order}
         onClose={() => setIsSplitBillOpen(false)}
         onSave={handleSaveSplit}
+      />
+
+      <EditItemPricesModal
+        open={isEditPricesOpen}
+        order={order}
+        onClose={() => setIsEditPricesOpen(false)}
+        onSave={handleSavePrices}
       />
 
     </div>

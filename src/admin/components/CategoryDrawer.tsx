@@ -5,6 +5,8 @@ import {
   updateCategory,
 } from "../services/categoryService";
 import { getLocalizedField } from "../../types";
+import LanguagePopup from "./LanguagePopup";
+import { Globe } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -23,6 +25,8 @@ export default function CategoryDrawer({
     name: "",
     isActive: true,
   });
+  const [languagePopupOpen, setLanguagePopupOpen] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, { name: string; description: string }>>({});
 
   useEffect(() => {
     if (item) {
@@ -30,20 +34,42 @@ export default function CategoryDrawer({
         name: getLocalizedField(item.name, "English"),
         isActive: item.isActive ?? true,
       });
+      const parsedTranslations: Record<string, { name: string; description: string }> = {};
+      if (typeof item.name === "object") {
+        for (const key of Object.keys(item.name)) {
+          if (key !== "English" && key !== "en") {
+            parsedTranslations[key] = { name: item.name[key], description: "" };
+          }
+        }
+      }
+      setTranslations(parsedTranslations);
     } else {
       setForm({
         name: "",
         isActive: true,
       });
+      setTranslations({});
     }
   }, [item, open]);
 
   async function handleSave() {
     try {
+      const updatedName = { English: form.name };
+      for (const [lang, trans] of Object.entries(translations)) {
+        if (trans && trans.name) {
+          (updatedName as any)[lang] = trans.name;
+        }
+      }
+
+      const payload = {
+        ...form,
+        name: updatedName
+      };
+
       if (item) {
-        await updateCategory(item.id, form);
+        await updateCategory(item.id, payload);
       } else {
-        await addCategory(form);
+        await addCategory(payload);
       }
 
       onSaved();
@@ -86,9 +112,19 @@ export default function CategoryDrawer({
 
           <div>
 
-            <label className="font-semibold text-sm">
-              Category Name
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold">
+                Category Name
+              </label>
+              <button
+                type="button"
+                onClick={() => setLanguagePopupOpen(true)}
+                className="p-2 rounded-lg hover:bg-gray-100 border border-gray-200 transition"
+                title="Add translations"
+              >
+                <Globe size={18} className="text-gray-600" />
+              </button>
+            </div>
 
             <input
               value={form.name}
@@ -142,6 +178,13 @@ export default function CategoryDrawer({
         </div>
 
       </div>
+
+      <LanguagePopup
+        open={languagePopupOpen}
+        onClose={() => setLanguagePopupOpen(false)}
+        onSave={(newTranslations) => setTranslations((prev) => ({ ...prev, ...newTranslations }))}
+        initialTranslations={translations}
+      />
 
     </div>
   );

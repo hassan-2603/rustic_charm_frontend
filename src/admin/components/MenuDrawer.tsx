@@ -33,6 +33,7 @@ export default function MenuDrawer({
     isVeg: boolean;
     isAvailable: boolean;
     priceOptions: Array<{ quantity: number; amount: number; unit?: string }>;
+    isMarketPrice?: boolean;
   }>({
     name: "",
     description: "",
@@ -42,9 +43,11 @@ export default function MenuDrawer({
     isVeg: true,
     isAvailable: true,
     priceOptions: [{ quantity: 1, amount: 0, unit: "" }],
+    isMarketPrice: false,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [showMarketPriceDropdown, setShowMarketPriceDropdown] = useState(false);
   const [languagePopupOpen, setLanguagePopupOpen] = useState(false);
   const [translations, setTranslations] = useState<Record<string, { name: string; description: string }>>({});
 
@@ -71,6 +74,7 @@ export default function MenuDrawer({
         isVeg: item.isVeg ?? true,
         isAvailable: item.isAvailable ?? true,
         priceOptions,
+        isMarketPrice: item.metadata?.isMarketPrice ?? false,
       });
       setShowOptions(priceOptions.length > 1);
 
@@ -89,6 +93,7 @@ export default function MenuDrawer({
         isVeg: true,
         isAvailable: true,
         priceOptions: [{ quantity: 1, amount: 0, unit: "" }],
+        isMarketPrice: false,
       });
 
       // Clear preview when adding a new item
@@ -130,6 +135,10 @@ export default function MenuDrawer({
         image: imageUrl,
         imageUrl: imageUrl,
         translations,
+        metadata: {
+          ...(item?.metadata || {}),
+          isMarketPrice: form.isMarketPrice,
+        },
       };
 
       if (showOptions) {
@@ -241,17 +250,33 @@ export default function MenuDrawer({
                 {showOptions ? "Base Price" : "Price"}
               </label>
 
-              <input
-                type="number"
-                value={form.price}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    price: Number(e.target.value),
-                  })
-                }
-                className="w-full mt-2 border rounded-xl p-3"
-              />
+              <div className="relative">
+                <input
+                  type={form.isMarketPrice ? "text" : "number"}
+                  value={form.isMarketPrice ? "Market Price" : form.price}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      price: e.target.value === "Market Price" ? 0 : Number(e.target.value),
+                      isMarketPrice: false,
+                    })
+                  }
+                  onFocus={() => setShowMarketPriceDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowMarketPriceDropdown(false), 200)}
+                  className="w-full mt-2 border rounded-xl p-3"
+                />
+                {!showOptions && showMarketPriceDropdown && (
+                  <div
+                    className="absolute z-10 w-full mt-1 bg-white border rounded-xl shadow-lg cursor-pointer hover:bg-gray-50 flex items-center p-3 text-sm font-semibold"
+                    onClick={() => {
+                      setForm({ ...form, isMarketPrice: true, price: 0 });
+                      setShowMarketPriceDropdown(false);
+                    }}
+                  >
+                    Set as Market Price
+                  </div>
+                )}
+              </div>
 
             </div>
 
@@ -409,7 +434,7 @@ export default function MenuDrawer({
               <img
                 src={preview}
                 alt=""
-                className="mt-4 w-full h-48 object-cover rounded-xl border"
+                className="mt-4 w-full h-48 object-contain rounded-xl border"
               />
             )}
 

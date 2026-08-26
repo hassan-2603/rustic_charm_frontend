@@ -56,7 +56,7 @@ export default function MenuTable({
                 <img
                   src={item.image || "/placeholder-food.jpg"}
                   alt={getLocalizedField(item.name, "English")}
-                  className="w-14 h-14 rounded-xl object-cover"
+                  className="w-14 h-14 rounded-xl object-contain"
                 />
 
               </td>
