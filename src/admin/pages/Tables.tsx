@@ -21,6 +21,7 @@ export default function Tables() {
 
   const [status, setStatus] = useState("All");
   const [selectedArea, setSelectedArea] = useState("All");
+  const [customAreaName, setCustomAreaName] = useState("");
   const [nextTableNumber, setNextTableNumber] = useState("1");
   const [isCreatingTable, setIsCreatingTable] = useState(false);
 
@@ -37,36 +38,43 @@ export default function Tables() {
   console.log("TABLES:", tables);
 
   const filteredTables = useMemo(() => {
-  return tables.filter((table) => {
-    const tableNumber = table.tableNumber ?? "";
-    const area = table.area || "";
-    const matchesSearch = `${tableNumber}`.includes(search) || (table.areaLabel || getAreaLabel(area)).toLowerCase().includes(search.toLowerCase());
+    return tables.filter((table) => {
+      const tableNumber = table.tableNumber ?? "";
+      const area = table.area || "";
+      const matchesSearch = `${tableNumber}`.includes(search) || (table.areaLabel || getAreaLabel(area)).toLowerCase().includes(search.toLowerCase());
 
-    const matchesStatus =
-      status === "All" ||
-      table.status === status;
+      const matchesStatus =
+        status === "All" ||
+        table.status === status;
 
-    const matchesArea = selectedArea === "All" || area === selectedArea;
+      const matchesArea = selectedArea === "All" || area === selectedArea;
 
-    return matchesSearch && matchesStatus && matchesArea;
-  });
-}, [tables, search, status, selectedArea]);
+      return matchesSearch && matchesStatus && matchesArea;
+    });
+  }, [tables, search, status, selectedArea]);
+
+  const uniqueAreaLabels = useMemo(() => {
+    const labels = new Set<string>();
+    DEFAULT_TABLE_AREAS.forEach(a => labels.add(a.label));
+    tables.forEach(t => {
+      const lbl = t.areaLabel || t.area;
+      if (lbl) labels.add(lbl);
+    });
+    return Array.from(labels).sort();
+  }, [tables]);
+
+  const activeAreaSelectVal = customAreaName !== "" ? "NEW" : (selectedArea || "All");
 
   const groupedTables = useMemo(() => {
     const grouped: Record<string, any[]> = {};
-
-    DEFAULT_TABLE_AREAS.forEach((area) => {
-      grouped[area.key] = [];
-    });
-
+    uniqueAreaLabels.forEach((label) => { grouped[label] = []; });
     filteredTables.forEach((table) => {
-      const areaKey = table.area || "unassigned";
-      if (!grouped[areaKey]) grouped[areaKey] = [];
-      grouped[areaKey].push(table);
+      const lbl = table.areaLabel || table.area || "Unassigned";
+      if (!grouped[lbl]) grouped[lbl] = [];
+      grouped[lbl].push(table);
     });
-
     return grouped;
-  }, [filteredTables]);
+  }, [filteredTables, uniqueAreaLabels]);
 
   async function handleCreateTable() {
     const parsedNumber = Number(nextTableNumber);
@@ -74,9 +82,17 @@ export default function Tables() {
 
     setIsCreatingTable(true);
     try {
-      const areaLabel = DEFAULT_TABLE_AREAS.find((item) => item.key === selectedArea)?.label || "Area";
-      await createTable(selectedArea, parsedNumber, areaLabel);
+      const areaLabelToUse = customAreaName.trim() || selectedArea;
+      if (!areaLabelToUse || areaLabelToUse === "All" || areaLabelToUse === "NEW") {
+        alert("Please select or enter a valid area name");
+        return;
+      }
+
+      const generatedKey = areaLabelToUse.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      await createTable(generatedKey, parsedNumber, areaLabelToUse);
       setNextTableNumber((parsedNumber + 1).toString());
+      setCustomAreaName("");
+      setSelectedArea(areaLabelToUse);
     } finally {
       setIsCreatingTable(false);
     }
@@ -101,16 +117,34 @@ export default function Tables() {
         <div className="flex flex-col lg:flex-row lg:items-end gap-4">
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700">Area</label>
-            <select
-              value={selectedArea}
-              onChange={(event) => setSelectedArea(event.target.value)}
-              className="mt-2 w-full rounded-xl border px-4 py-3"
-            >
-              <option value="All">All Areas</option>
-              {DEFAULT_TABLE_AREAS.map((area) => (
-                <option key={area.key} value={area.key}>{area.label}</option>
-              ))}
-            </select>
+            <div className="flex flex-col mt-2 gap-2">
+              <select
+                value={activeAreaSelectVal}
+                onChange={(event) => {
+                  if (event.target.value === "NEW") {
+                    setCustomAreaName("New Area");
+                  } else {
+                    setSelectedArea(event.target.value);
+                    setCustomAreaName("");
+                  }
+                }}
+                className="w-full rounded-xl border px-4 py-3"
+              >
+                {uniqueAreaLabels.map((lbl) => (
+                  <option key={lbl} value={lbl}>{lbl}</option>
+                ))}
+                <option value="NEW">+ Create New Area</option>
+              </select>
+              {customAreaName !== "" && (
+                <input
+                  value={customAreaName}
+                  onChange={(e) => setCustomAreaName(e.target.value)}
+                  placeholder="Enter custom area name"
+                  className="w-full rounded-xl border px-4 py-3 bg-gray-50"
+                  autoFocus
+                />
+              )}
+            </div>
           </div>
           <div className="flex-1">
             <label className="text-sm font-semibold text-gray-700">New Table Number</label>
@@ -134,29 +168,31 @@ export default function Tables() {
       </div>
 
       <div className="space-y-8">
-        {Object.entries(groupedTables).map(([areaKey, areaTables]) => (
-          <div key={areaKey} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">
-                {getAreaLabel(areaKey)}
-              </h3>
-              <span className="text-sm text-gray-500">{areaTables.length} tables</span>
-            </div>
+        {Object.entries(groupedTables)
+          .filter(([, areaTables]) => areaTables.length > 0)
+          .map(([areaLabel, areaTables]) => (
+            <div key={areaLabel} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {areaLabel}
+                </h3>
+                <span className="text-sm text-gray-500">{areaTables.length} tables</span>
+              </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {areaTables.map((table) => (
-                <TableCard
-                  key={table.id}
-                  table={table}
-                  onView={() => {
-                    setSelectedTable(table);
-                    setDrawerOpen(true);
-                  }}
-                />
-              ))}
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {areaTables.map((table) => (
+                  <TableCard
+                    key={table.id}
+                    table={table}
+                    onView={() => {
+                      setSelectedTable(table);
+                      setDrawerOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       <TableDetailsDrawer

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 import { getMenuItems } from "../services/menuService";
+import { getLocalizedField } from "../../types";
 
 import SectionHeader from "../components/SectionHeader";
 import SearchBar from "../components/SearchBar";
@@ -13,6 +14,8 @@ export default function Menu() {
   const [search, setSearch] = useState("");
 
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedVeg, setSelectedVeg] = useState("All Items");
+  const [selectedAvailability, setSelectedAvailability] = useState("Availability");
 
   const [menuItems, setMenuItems] = useState<any[]>([]);
 
@@ -23,16 +26,16 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
   async function loadMenu() {
-  const items = await getMenuItems();
+    const items = await getMenuItems();
 
-  console.log("CUSTOMER MENU:", items);
+    console.log("CUSTOMER MENU:", items);
 
-  setMenuItems(items);
-}
+    setMenuItems(items);
+  }
 
-useEffect(() => {
-  loadMenu();
-}, []);
+  useEffect(() => {
+    loadMenu();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -56,74 +59,81 @@ useEffect(() => {
 
         <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
 
-  <SearchBar
-    value={search}
-    onChange={setSearch}
-    placeholder="Search menu..."
-  />
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search menu..."
+          />
 
-  <MenuFilters
-    selectedCategory={selectedCategory}
-    onCategoryChange={setSelectedCategory}
-  />
+          <MenuFilters
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            selectedVeg={selectedVeg}
+            onVegChange={setSelectedVeg}
+            selectedAvailability={selectedAvailability}
+            onAvailabilityChange={setSelectedAvailability}
+          />
 
-</div>
+        </div>
 
-<MenuTable
-  menuItems={menuItems.filter((item) => {
-    const q = search.toLowerCase();
+        <MenuTable
+          menuItems={menuItems.filter((item) => {
+            const q = search.toLowerCase();
 
-    const itemName =
-      typeof item.name === "string"
-        ? item.name
-        : item.name?.English || "";
+            const itemName = getLocalizedField(item.name, "English");
+            const itemCategory = getLocalizedField(item.category, "English");
 
-    const itemCategory =
-      typeof item.category === "string"
-        ? item.category
-        : "";
+            const matchesSearch =
+              itemName.toLowerCase().includes(q) ||
+              itemCategory.toLowerCase().includes(q);
 
-    const matchesSearch =
-      itemName.toLowerCase().includes(q) ||
-      itemCategory.toLowerCase().includes(q);
+            const matchesCategory =
+              selectedCategory === "All" ||
+              itemCategory === selectedCategory;
 
-    const matchesCategory =
-      selectedCategory === "All" ||
-      itemCategory === selectedCategory;
+            const matchesVeg =
+              selectedVeg === "All Items" ||
+              (selectedVeg === "Veg" && item.isVeg) ||
+              (selectedVeg === "Non Veg" && !item.isVeg);
 
-    return matchesSearch && matchesCategory;
-  })}
-  onEdit={(item) => {
-    setSelectedItem(item);
-    setDrawerOpen(true);
-  }}
-  onDelete={(item) => {
-    setSelectedItem(item);
-    setDeleteOpen(true);
-  }}
-/>
+            const matchesAvailability =
+              selectedAvailability === "Availability" ||
+              (selectedAvailability === "Available" && item.available) ||
+              (selectedAvailability === "Unavailable" && !item.available);
+
+            return matchesSearch && matchesCategory && matchesVeg && matchesAvailability;
+          })}
+          onEdit={(item) => {
+            setSelectedItem(item);
+            setDrawerOpen(true);
+          }}
+          onDelete={(item) => {
+            setSelectedItem(item);
+            setDeleteOpen(true);
+          }}
+        />
 
       </div>
 
       <MenuDrawer
-  open={drawerOpen}
-  item={selectedItem}
-  onClose={() => {
-    setDrawerOpen(false);
-    setSelectedItem(null);
-  }}
-  onSaved={loadMenu}
-/>
+        open={drawerOpen}
+        item={selectedItem}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedItem(null);
+        }}
+        onSaved={loadMenu}
+      />
 
       <DeleteMenuModal
-  open={deleteOpen}
-  item={selectedItem}
-  onClose={() => {
-    setDeleteOpen(false);
-    setSelectedItem(null);
-  }}
-  onDeleted={loadMenu}
-/>
+        open={deleteOpen}
+        item={selectedItem}
+        onClose={() => {
+          setDeleteOpen(false);
+          setSelectedItem(null);
+        }}
+        onDeleted={loadMenu}
+      />
 
     </div>
   );

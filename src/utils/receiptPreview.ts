@@ -62,6 +62,13 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     // NOTE: If billSections is needed, it would be passed in options, but for preview we can rely on standard splitting.
     const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
 
+    const formatRightAlignedTotal = (label: string, amount: number, prefix: string = "Rs ") => {
+      const amtStr = String(amount).padStart(6, " ");
+      const rightSide = `${prefix}${amtStr}`;
+      const leftSide = label.padEnd(42 - rightSide.length, " ");
+      return `${leftSide}${rightSide}`;
+    };
+
     if (foodItems.length > 0) {
       lines.push("--- FOOD ---");
       for (const item of foodItems) {
@@ -70,7 +77,7 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
         const amtPad = String(item.price * item.quantity).padStart(6, " ");
         lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
-      lines.push(`${"Food Subtotal:".padEnd(29, " ")} Rs ${String(foodTotal).padStart(6, " ")}`);
+      lines.push(formatRightAlignedTotal("Food Subtotal:", foodTotal));
       lines.push("");
     }
 
@@ -82,15 +89,15 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
         const amtPad = String(item.price * item.quantity).padStart(6, " ");
         lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
       }
-      lines.push(`${"Liquor Subtotal:".padEnd(29, " ")} Rs ${String(alcoholTotal).padStart(6, " ")}`);
+      lines.push(formatRightAlignedTotal("Liquor Subtotal:", alcoholTotal));
       lines.push("");
     }
 
     lines.push("------------------------------------------");
     if (order.discountAmount > 0) {
-      lines.push(`${"DISCOUNT:".padEnd(28, " ")}-Rs ${String(order.discountAmount).padStart(6, " ")}`);
+      lines.push(formatRightAlignedTotal("DISCOUNT:", order.discountAmount, "-Rs "));
     }
-    lines.push(`${"TOTAL:".padEnd(29, " ")} Rs ${String(order.finalTotal ?? order.total).padStart(6, " ")}`);
+    lines.push(formatRightAlignedTotal("GRAND TOTAL:", order.finalTotal ?? order.total));
   }
 
   lines.push("");

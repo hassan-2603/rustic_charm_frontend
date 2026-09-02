@@ -27,7 +27,7 @@ import {
 export default function Dashboard() {
 
   const waiter = JSON.parse(
-    sessionStorage.getItem("waiter") || "{}"
+    localStorage.getItem("waiter") || "{}"
   );
 
   const [orders, setOrders] = useState<any[]>([]);

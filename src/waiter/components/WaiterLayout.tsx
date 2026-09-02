@@ -2,7 +2,7 @@ import { Outlet, Navigate } from "react-router-dom";
 import WaiterSidebar from "./WaiterSidebar";
 
 export default function WaiterLayout() {
-    const waiter = sessionStorage.getItem("waiter");
+    const waiter = localStorage.getItem("waiter");
 
     if (!waiter) {
         return <Navigate to="/waiter" replace />;

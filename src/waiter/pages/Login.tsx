@@ -11,7 +11,7 @@ const handleLogin = async () => {
   try {
     const waiter = await loginWaiter(waiterId, pin);
 
-    sessionStorage.setItem(
+    localStorage.setItem(
       "waiter",
       JSON.stringify(waiter)
     );

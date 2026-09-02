@@ -4,6 +4,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Rating from "./pages/Rating";
 import OrderByCaptain from "./pages/OrderByCaptain";
+import Tables from "./pages/Tables";
+import TableOrders from "./pages/TableOrders";
 import WaiterLayout from "./components/WaiterLayout";
 
 export default function WaiterApp() {
@@ -25,6 +27,14 @@ export default function WaiterApp() {
         <Route
           path="order-by-captain"
           element={<OrderByCaptain />}
+        />
+        <Route
+          path="tables"
+          element={<Tables />}
+        />
+        <Route
+          path="tables/:tableId"
+          element={<TableOrders />}
         />
       </Route>
     </Routes>

@@ -101,9 +101,10 @@ export default function OrderDetailsDrawer({
     }
     setSavingPayment(true);
     try {
-      await updateOrder(order.id, { paymentMethod: selectedPaymentMethod });
+      await updateOrder(order.id, { paymentMethod: selectedPaymentMethod, status: 'Completed', completedAt: new Date().toISOString() });
+      order.status = 'Completed';
       order.paymentMethod = selectedPaymentMethod;
-      alert("Payment method saved.");
+      alert("Payment method saved & Order Completed.");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Unable to save payment method.");
     } finally {
@@ -114,13 +115,11 @@ export default function OrderDetailsDrawer({
   async function handleAddedItems(updated: any) {
     Object.assign(order, updated);
     forceUpdate((n) => n + 1);
-    openReceiptPreview(updated, "BILL");
   }
 
   async function handleRemovedItems(updated: any) {
     Object.assign(order, updated);
     forceUpdate((n) => n + 1);
-    openReceiptPreview(updated, "BILL");
   }
 
   async function handleCancelOrder() {
@@ -316,49 +315,9 @@ export default function OrderDetailsDrawer({
 
           <div>
 
-            <h3 className="font-semibold mb-4 flex items-center justify-between gap-2">
-
-              <span className="flex items-center gap-2">
-                <ShoppingBag size={18} />
-                Ordered Items
-              </span>
-
-              <div className="flex flex-col flex-wrap justify-end gap-2">
-                <span className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddItemOpen(true)}
-                    className="text-sm font-semibold text-olive border border-olive rounded-lg px-3 py-1.5 hover:bg-olive/5 transition"
-                  >
-                    + Add Item
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsRemoveItemOpen(true)}
-                    className="text-sm font-semibold text-red-600 border border-red-600 rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
-                  >
-                    − Remove Item
-                  </button>
-                </span>
-                <span className="flex items-center gap-2 w-full">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditPricesOpen(true)}
-                    className="flex-1 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition"
-                  >
-                    Edit Prices
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsSplitBillOpen(true)}
-                    className="flex-1 text-sm font-semibold text-blue-600 border border-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition"
-                  >
-                    Split Bill
-                  </button>
-                </span>
-              </div>
-
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <ShoppingBag size={18} />
+              Ordered Items
             </h3>
 
             <div className="space-y-3">
@@ -568,14 +527,47 @@ export default function OrderDetailsDrawer({
 
           <div className="space-y-3">
 
-            <button
-              type="button"
-              onClick={() => setIsDiscountModalOpen(true)}
-              className="w-full border border-olive text-olive py-3 rounded-xl font-semibold hover:bg-olive/5 transition flex items-center justify-center gap-2"
-            >
-              <Percent size={17} />
-              {hasDiscount ? "Edit Discount" : "Apply Discount"}
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAddItemOpen(true)}
+                className="w-full border border-gray-300 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-50 transition"
+              >
+                + Add Item
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRemoveItemOpen(true)}
+                className="w-full border border-red-300 text-red-600 py-3 rounded-xl font-semibold hover:bg-red-50 transition"
+              >
+                − Remove Item
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(true)}
+                className="w-full border border-gray-300 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-1.5 text-sm sm:text-base"
+              >
+                <Percent size={17} />
+                {hasDiscount ? "Edit Discount" : "Discount"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSplitBillOpen(true)}
+                className="w-full border border-blue-300 text-blue-600 py-3 rounded-xl font-semibold hover:bg-blue-50 transition text-sm sm:text-base"
+              >
+                Split Bill
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditPricesOpen(true)}
+                className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition col-span-2 lg:col-span-1 text-sm sm:text-base"
+              >
+                Edit Prices
+              </button>
+            </div>
 
             {previewContent && (
               <div className="bg-gray-50 border p-4 rounded-xl max-h-64 overflow-y-auto w-full">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, X, Plus, Minus } from "lucide-react";
 import { getMenuItems } from "../../services/customerApi";
 import { addOrderItems } from "../services/waiterService";
+import { printKOT } from "../services/printerService";
 import { getLocalizedField, getMenuPriceOptions } from "../../types";
 
 type Props = {
@@ -12,12 +13,11 @@ type Props = {
 };
 
 export default function AddItemModal({ open, order, onClose, onItemAdded }: Props) {
+  type SelectedItem = { item: any; quantity: number };
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [adding, setAdding] = useState(false);
-  const [justAddedName, setJustAddedName] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -27,9 +27,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   useEffect(() => {
     if (!open) {
       setSearch("");
-      setSelectedItem(null);
-      setQuantity(1);
-      setJustAddedName("");
+      setSelected([]);
     }
   }, [open]);
 
@@ -44,30 +42,41 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
 
   const getItemPrice = (item: any) => Number(item.price || getMenuPriceOptions(item)[0]?.amount || 0);
 
-  function selectItem(item: any) {
-    setSelectedItem(item);
-    setQuantity(1);
-    setJustAddedName("");
+  function updateQuantity(item: any, amount: number) {
+    setSelected((current) => {
+      const existing = current.find((entry) => entry.item.id === item.id);
+      if (existing) {
+        return current
+          .map((entry) => entry.item.id === item.id ? { ...entry, quantity: entry.quantity + amount } : entry)
+          .filter((entry) => entry.quantity > 0);
+      }
+      if (amount > 0) {
+        return [...current, { item, quantity: amount }];
+      }
+      return current;
+    });
   }
 
+  const total = selected.reduce((sum, entry) => sum + getItemPrice(entry.item) * entry.quantity, 0);
+
   async function handleAdd() {
-    if (!selectedItem) return;
+    if (selected.length === 0) return;
     setAdding(true);
     try {
-      const updated = await addOrderItems(order.id, [
-        {
-          menuItemId: selectedItem.id,
-          name: getLocalizedField(selectedItem.name, "English"),
-          quantity,
-          price: getItemPrice(selectedItem),
-        },
-      ]);
+      const itemsPayload = selected.map(({ item, quantity }) => ({
+        menuItemId: item.id,
+        name: getLocalizedField(item.name, "English"),
+        quantity,
+        price: getItemPrice(item),
+      }));
+      const updated = await addOrderItems(order.id, itemsPayload);
+      const waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
+      await printKOT(order.id, waiter?.id);
       onItemAdded(updated);
-      setJustAddedName(getLocalizedField(selectedItem.name, "English"));
-      setSelectedItem(null);
-      setQuantity(1);
+      setSelected([]);
+      onClose();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Unable to add item to order.");
+      alert(error instanceof Error ? error.message : "Unable to add items to order.");
     } finally {
       setAdding(false);
     }
@@ -75,7 +84,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
 
         <div className="flex justify-between items-center p-5 border-b">
           <div>
@@ -98,72 +107,60 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
               autoFocus
             />
           </div>
-          {justAddedName && (
-            <p className="mt-3 text-sm font-medium text-green-600">
-              Added "{justAddedName}" to the order.
-            </p>
-          )}
         </div>
 
-        <div className="p-5 overflow-y-auto grid gap-3 sm:grid-cols-2">
+        <div className="flex-1 p-5 overflow-y-auto min-h-0 space-y-3">
           {filteredItems.map((item) => {
-            const isSelected = selectedItem?.id === item.id;
+            const selectedEntry = selected.find(s => s.item.id === item.id);
+            const isSelected = !!selectedEntry;
+            const currentObjQuantity = selectedEntry ? selectedEntry.quantity : 0;
             return (
-              <button
+              <div
                 key={item.id}
-                onClick={() => selectItem(item)}
-                className={`text-left border rounded-xl p-4 transition ${
-                  isSelected ? "border-olive bg-olive/5" : "hover:border-olive hover:bg-gray-50"
-                }`}
+                className={`flex items-center justify-between border rounded-xl p-4 transition ${isSelected ? "border-olive bg-olive/5" : "hover:border-olive bg-white"}`}
               >
-                <div className="font-semibold">{getLocalizedField(item.name, "English")}</div>
-                <div className="text-sm text-gray-500">{item.category || ""}</div>
-                <div className="mt-2 font-semibold">₹{getItemPrice(item)}</div>
-              </button>
+                <div>
+                  <div className="font-semibold">{getLocalizedField(item.name, "English")}</div>
+                  <div className="text-sm text-gray-500">{item.category || ""}</div>
+                  <div className="mt-1 font-semibold">₹{getItemPrice(item)}</div>
+                </div>
+
+                <div className="flex items-center bg-white border rounded-lg overflow-hidden shrink-0 shadow-sm">
+                  {currentObjQuantity > 0 ? (
+                    <>
+                      <button onClick={() => updateQuantity(item, -1)} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold">−</button>
+                      <div className="px-4 font-semibold min-w-[2.5rem] text-center">{currentObjQuantity}</div>
+                      <button onClick={() => updateQuantity(item, 1)} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold">+</button>
+                    </>
+                  ) : (
+                    <button onClick={() => updateQuantity(item, 1)} className="px-4 py-1.5 text-olive hover:bg-olive hover:text-white font-semibold transition">Add</button>
+                  )}
+                </div>
+              </div>
             );
           })}
           {filteredItems.length === 0 && (
-            <p className="text-gray-500 col-span-full text-center py-6">No menu items found.</p>
+            <p className="text-gray-500 text-center py-6">No menu items found.</p>
           )}
         </div>
 
-        {selectedItem && (
-          <div className="p-5 border-t bg-gray-50 flex items-center justify-between gap-4">
-            <div>
-              <p className="font-semibold">{getLocalizedField(selectedItem.name, "English")}</p>
-              <p className="text-sm text-gray-500">₹{getItemPrice(selectedItem)} each</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="border rounded p-1.5"
-              >
-                <Minus size={15} />
-              </button>
-              <span className="w-6 text-center font-semibold">{quantity}</span>
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => q + 1)}
-                className="border rounded p-1.5"
-              >
-                <Plus size={15} />
-              </button>
-            </div>
+        <div className="p-5 border-t flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white shrink-0">
+          <div>
+            <p className="text-sm text-gray-500">{selected.length} items selected</p>
+            <p className="font-bold text-lg text-gray-900">Total: ₹{total}</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="border px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50">
+              Cancel
+            </button>
             <button
               onClick={handleAdd}
-              disabled={adding}
+              disabled={adding || selected.length === 0}
               className="bg-olive hover:bg-olive/90 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60"
             >
-              {adding ? "Adding..." : "Add to Order"}
+              {adding ? "Printing..." : "Order & Print KOT"}
             </button>
           </div>
-        )}
-
-        <div className="p-5 border-t flex justify-end">
-          <button onClick={onClose} className="border px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50">
-            Done
-          </button>
         </div>
 
       </div>

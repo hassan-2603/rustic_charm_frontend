@@ -1,20 +1,21 @@
 import { useState } from "react";
-import { LayoutDashboard, Star, LogOut, Menu, X, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Star, LogOut, Menu, X, ClipboardList, Armchair } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 const links = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/waiter/dashboard" },
     { icon: ClipboardList, label: "Order by Captain", to: "/waiter/order-by-captain" },
     { icon: Star, label: "Rating", to: "/waiter/rating" },
+    { icon: Armchair, label: "Tables", to: "/waiter/tables" },
 ];
 
 export default function WaiterSidebar() {
     const [open, setOpen] = useState(false);
     const navigate = useNavigate();
-    const waiter = JSON.parse(sessionStorage.getItem("waiter") || "{}");
+    const waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
 
     const handleLogout = () => {
-        sessionStorage.removeItem("waiter");
+        localStorage.removeItem("waiter");
         navigate("/waiter");
     };
 

@@ -5,15 +5,21 @@ import { getLocalizedField } from "../../types";
 type Props = {
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
+  selectedVeg: string;
+  onVegChange: (veg: string) => void;
+  selectedAvailability: string;
+  onAvailabilityChange: (availability: string) => void;
 };
 
 export default function MenuFilters({
   selectedCategory,
   onCategoryChange,
+  selectedVeg,
+  onVegChange,
+  selectedAvailability,
+  onAvailabilityChange,
 }: Props) {
   const [categories, setCategories] = useState<any[]>([]);
-  const [veg, setVeg] = useState("All");
-  const [availability, setAvailability] = useState("All");
 
   useEffect(() => {
     async function loadCategories() {
@@ -42,23 +48,23 @@ export default function MenuFilters({
       </select>
 
       <select
-        value={veg}
-        onChange={(e) => setVeg(e.target.value)}
+        value={selectedVeg}
+        onChange={(e) => onVegChange(e.target.value)}
         className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-olive/30"
       >
-        <option>All Items</option>
-        <option>Veg</option>
-        <option>Non Veg</option>
+        <option value="All Items">All Items</option>
+        <option value="Veg">Veg</option>
+        <option value="Non Veg">Non Veg</option>
       </select>
 
       <select
-        value={availability}
-        onChange={(e) => setAvailability(e.target.value)}
+        value={selectedAvailability}
+        onChange={(e) => onAvailabilityChange(e.target.value)}
         className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-olive/30"
       >
-        <option>Availability</option>
-        <option>Available</option>
-        <option>Unavailable</option>
+        <option value="Availability">Availability</option>
+        <option value="Available">Available</option>
+        <option value="Unavailable">Unavailable</option>
       </select>
 
     </div>

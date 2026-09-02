@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Check } from "lucide-react";
 import { removeOrderItems } from "../services/orderApi";
+import { printKOT } from "../services/printerService";
 
 type Props = {
   open: boolean;
@@ -63,6 +64,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
     setRemoving(true);
     try {
       const updated = await removeOrderItems(order.id, removals);
+      await printKOT(order.id);
       onItemsRemoved(updated);
       setRemovedQty({});
       onClose();
@@ -75,7 +77,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
 
         <div className="flex justify-between items-center p-5 border-b">
           <div>
@@ -87,7 +89,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto space-y-3">
+        <div className="flex-1 p-5 overflow-y-auto min-h-0 space-y-3">
           {items.map((item: any, index: number) => {
             const itemId = item.id ?? String(index);
             const maxQty = Number(item.quantity) || 1;
@@ -141,7 +143,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
           )}
         </div>
 
-        <div className="p-5 border-t flex justify-between items-center gap-4">
+        <div className="p-5 border-t flex justify-between items-center gap-4 shrink-0 bg-white">
           <p className="text-sm text-gray-500">
             {Object.keys(removedQty).length > 0 ? `${Object.values(removedQty).reduce((a, b) => a + b, 0)} item(s) to remove` : "Select items to remove"}
           </p>
@@ -154,7 +156,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
               disabled={removing || Object.keys(removedQty).length === 0}
               className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60"
             >
-              {removing ? "Removing..." : "Done"}
+              {removing ? "Printing..." : "Remove & Print KOT"}
             </button>
           </div>
         </div>
