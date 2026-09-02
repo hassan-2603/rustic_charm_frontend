@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { listenTables } from "../../admin/services/tableService";
+import { listenTables } from "../services/waiterService";
 import { DEFAULT_TABLE_AREAS, getAreaLabel } from "../../utils/tableUtils";
 
 export default function Tables() {
     const [tables, setTables] = useState<any[]>([]);
 
     useEffect(() => {
-        const unsubscribe = listenTables(setTables, (err) => {
-            console.error(err);
-        });
+        const unsubscribe = listenTables(setTables);
         return () => unsubscribe();
     }, []);
 

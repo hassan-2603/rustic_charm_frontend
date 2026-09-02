@@ -23,13 +23,13 @@ function formatTime(date: Date) {
   const m = String(date.getMinutes()).padStart(2, '0');
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12;
-  h = h ? h : 12; 
+  h = h ? h : 12;
   return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
 }
 
 export function generateRusticCharmReport(orders: any[], filenamePrefix: string, isAuto: boolean = false) {
   const groups: Record<string, any> = {};
-  
+
   let overallCancel = 0;
   let overallDiscount = 0;
   let overallService = 0;
@@ -37,17 +37,17 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
   orders.forEach(order => {
     let d = parseDate(order.createdAt);
     if (!d) return;
-    
+
     const bizDate = toIndiaDate(d);
-    
+
     if (bizDate.getHours() < 7) {
       bizDate.setDate(bizDate.getDate() - 1);
     }
     const dateStr = formatStr(bizDate);
-    
+
     if (!groups[dateStr]) {
       groups[dateStr] = {
-        dateStr, bizDate, 
+        dateStr, bizDate,
         foodMin: 99999999, foodMax: 0,
         liquorMin: 99999999, liquorMax: 0,
         food: 0, liquor: 0,
@@ -56,7 +56,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       };
     }
     const g = groups[dateStr];
-    
+
     let fTotal = 0;
     let lTotal = 0;
     order.items?.forEach((item: any) => {
@@ -70,7 +70,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     const hasFood = fTotal > 0;
     const hasLiquor = lTotal > 0;
     const bNo = Number(order.billNumber) || 0;
-    
+
     if (hasFood && bNo) {
       if (bNo < g.foodMin) g.foodMin = bNo;
       if (bNo > g.foodMax) g.foodMax = bNo;
@@ -79,27 +79,27 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       if (bNo < g.liquorMin) g.liquorMin = bNo;
       if (bNo > g.liquorMax) g.liquorMax = bNo;
     }
-    
+
     const disc = Number(order.discountAmount) || 0;
     overallDiscount += disc;
 
     if (order.status === "Cancelled") {
-       overallCancel += (Number(order.total) || 0);
+      overallCancel += (Number(order.total) || 0);
     }
 
     const fRatio = (fTotal + lTotal) > 0 ? (fTotal / (fTotal + lTotal)) : 0;
     const lRatio = (fTotal + lTotal) > 0 ? (lTotal / (fTotal + lTotal)) : 0;
-    
+
     const fNet = Math.round(fTotal - (disc * fRatio));
     const lNet = Math.round(lTotal - (disc * lRatio));
-    
+
     if (order.status !== "Cancelled") {
       g.food += fNet;
       g.liquor += lNet;
-      
+
       const finalTot = Number(order.finalTotal ?? order.total) || 0;
       g.grTotal += finalTot;
-      
+
       const pm = (order.paymentMethod || "").toUpperCase();
       if (pm === "CASH") g.cash += finalTot;
       else if (pm === "CARD") g.card += finalTot;
@@ -108,7 +108,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
   });
 
   const sortedDates = Object.values(groups).sort((a: any, b: any) => a.bizDate.getTime() - b.bizDate.getTime());
-  
+
   const nowIndia = toIndiaDate(new Date());
 
   const minDateStr = sortedDates.length > 0 ? sortedDates[0].dateStr : formatStr(nowIndia);
@@ -122,7 +122,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     [`PRINT DATE: ${printDateStr}`],
     [],
     [],
-    ["DATE", "B.NO.START", "B.NO.END", "FOOD", "TOTAL", "B.NO.START", "B.NO.END", "LIQUOR", "TOTAL", "GR.TOTAL", "CASH", "CARD", "ONLINE"]
+    ["DATE", "FOOD", "TOTAL", "LIQUOR", "TOTAL", "GR.TOTAL", "CASH", "CARD", "ONLINE"]
   ];
 
   let sumFood = 0, sumLiquor = 0, sumGrTotal = 0, sumCash = 0, sumCard = 0, sumOnline = 0;
@@ -134,15 +134,11 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     sumCash += g.cash;
     sumCard += g.card;
     sumOnline += g.online;
-    
+
     aoa.push([
       g.dateStr,
-      g.foodMin === 99999999 ? 0 : g.foodMin,
-      g.foodMax === 0 ? 0 : g.foodMax,
       g.food,
       g.food,
-      g.liquorMin === 99999999 ? 0 : g.liquorMin,
-      g.liquorMax === 0 ? 0 : g.liquorMax,
       g.liquor,
       g.liquor,
       g.grTotal,
@@ -151,39 +147,38 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       g.online
     ]);
   });
-  
+
   const bottomTotalRowIndex = aoa.length + 1; // 1-indexed for XLSX
   aoa.push([
-    null, null, null, 
-    sumFood, sumFood, 
-    null, null, 
-    sumLiquor, sumLiquor, 
+    null,
+    sumFood, sumFood,
+    sumLiquor, sumLiquor,
     sumGrTotal, sumCash, sumCard, sumOnline
   ]);
 
   const grossAmount = sumGrTotal + overallCancel + overallDiscount - overallService;
-  
-  while(aoa.length <= 10) aoa.push(new Array(13).fill(null));
-  
-  aoa[6][13] = null;
-  aoa[6][14] = "GROSS AMOUNT:";
-  aoa[6][15] = grossAmount;
-  
-  aoa[7][13] = null;
-  aoa[7][14] = "BILL CANCEL AMOUNT:(-)";
-  aoa[7][15] = overallCancel;
 
-  aoa[8][13] = null;
-  aoa[8][14] = "DISCOUNT:(-)";
-  aoa[8][15] = overallDiscount;
+  while (aoa.length <= 10) aoa.push(new Array(12).fill(null));
 
-  aoa[9][13] = null;
-  aoa[9][14] = "Service Chrg@0.00%:(+)";
-  aoa[9][15] = overallService;
-  
-  aoa[10][13] = null;
-  aoa[10][14] = "NET AMOUNT:";
-  aoa[10][15] = sumGrTotal;
+  aoa[6][9] = null;
+  aoa[6][10] = "GROSS AMOUNT:";
+  aoa[6][11] = grossAmount;
+
+  aoa[7][9] = null;
+  aoa[7][10] = "BILL CANCEL AMOUNT:(-)";
+  aoa[7][11] = overallCancel;
+
+  aoa[8][9] = null;
+  aoa[8][10] = "DISCOUNT:(-)";
+  aoa[8][11] = overallDiscount;
+
+  aoa[9][9] = null;
+  aoa[9][10] = "Service Chrg@0.00%:(+)";
+  aoa[9][11] = overallService;
+
+  aoa[10][9] = null;
+  aoa[10][10] = "NET AMOUNT:";
+  aoa[10][11] = sumGrTotal;
 
   const worksheet = XLSX.utils.aoa_to_sheet(aoa);
 
@@ -219,27 +214,27 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     if (cell.startsWith("!")) continue;
     const colStr = cell.replace(/[0-9]/g, '');
     const rowNum = parseInt(cell.replace(/[^0-9]/g, ''), 10);
-    
+
     // Top headers
     if (rowNum >= 1 && rowNum <= 4) {
       if (!worksheet[cell].s) worksheet[cell].s = {};
       worksheet[cell].s.font = rowNum === 1 || rowNum === 2 ? titleFont : { bold: true, color: { rgb: "555555" } };
     }
-    
+
     // Main Table header (row 7)
-    if (rowNum === 7 && colStr <= 'M') {
+    if (rowNum === 7 && colStr <= 'I') {
       worksheet[cell].s = headerStyle;
-    } else if (rowNum > 7 && rowNum < bottomTotalRowIndex && colStr <= 'M') {
+    } else if (rowNum > 7 && rowNum < bottomTotalRowIndex && colStr <= 'I') {
       // Table data
       worksheet[cell].s = dataStyle;
-    } else if (rowNum === bottomTotalRowIndex && colStr <= 'M') {
+    } else if (rowNum === bottomTotalRowIndex && colStr <= 'I') {
       // Bottom total inner row
       worksheet[cell].s = totalsStyle;
     }
 
-    // Side summary
-    if (rowNum >= 7 && rowNum <= 11 && (colStr === 'O' || colStr === 'P')) {
-      if (colStr === 'O') {
+    // Side summary remains unchanged
+    if (rowNum >= 7 && rowNum <= 11 && (colStr === 'K' || colStr === 'L')) {
+      if (colStr === 'K') {
         worksheet[cell].s = {
           font: { bold: true, color: { rgb: "333333" } },
           fill: { fgColor: { rgb: "F4F4F4" } },
@@ -247,7 +242,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
           alignment: { horizontal: "right" }
         };
       }
-      if (colStr === 'P') {
+      if (colStr === 'L') {
         worksheet[cell].s = {
           font: { bold: true },
           border: thinBorder
@@ -266,10 +261,6 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     { wch: 12 },
     { wch: 12 },
     { wch: 12 },
-    { wch: 14 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 14 },
     { wch: 4 },
     { wch: 25 },
     { wch: 15 }
@@ -285,8 +276,8 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
   );
 }
 
-export function exportOrdersExcel(orders: any[], isAuto: boolean = false) {
-  generateRusticCharmReport(orders, "Orders", isAuto);
+export function exportOrdersExcel(orders: any[], isAuto: boolean = false, prefix: string = "Orders") {
+  generateRusticCharmReport(orders, prefix, isAuto);
 }
 
 export function exportRevenueExcel(orders: any[]) {
