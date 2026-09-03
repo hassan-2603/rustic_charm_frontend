@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, X, Plus, Minus } from "lucide-react";
+import { Search, X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { getMenuItems } from "../../services/customerApi";
 import { addOrderItems } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
@@ -18,6 +18,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [adding, setAdding] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -144,23 +145,39 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
           )}
         </div>
 
-        <div className="p-5 border-t flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white shrink-0">
-          <div>
-            <p className="text-sm text-gray-500">{selected.length} items selected</p>
-            <p className="font-bold text-lg text-gray-900">Total: ₹{total}</p>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="border px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50">
-              Cancel
-            </button>
-            <button
-              onClick={handleAdd}
-              disabled={adding || selected.length === 0}
-              className="bg-olive hover:bg-olive/90 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60"
-            >
-              {adding ? "Printing..." : "Order & Print KOT"}
+        <div className="p-5 border-t bg-white shrink-0">
+          <div className="sm:hidden flex justify-between items-center mb-4">
+            <span className="font-bold text-gray-700">{selected.length} Items Selected</span>
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+              {isCollapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
           </div>
+
+          {!isCollapsed && (
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <div className="hidden sm:block">
+                <p className="text-sm text-gray-500">{selected.length} items selected</p>
+                <p className="font-bold text-lg text-gray-900">Total: ₹{total}</p>
+              </div>
+              <div className="sm:hidden flex justify-between">
+                <span className="font-bold text-lg text-gray-900">Total</span>
+                <span className="font-bold text-lg text-gray-900">₹{total}</span>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={onClose} className="border px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50 flex-1 sm:flex-none">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdd}
+                  disabled={adding || selected.length === 0}
+                  className="bg-olive hover:bg-olive/90 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60 flex-1 sm:flex-none"
+                >
+                  {adding ? "Printing..." : "Order & Print KOT"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Search, Trash2 } from "lucide-react";
+import { Minus, Plus, Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { getMenuItems } from "../services/menuService";
 import { getWaiters } from "../services/waiterService";
 import { listenTables } from "../services/tableApi";
@@ -23,6 +23,7 @@ export default function OrderByAdmin() {
   const [showDescriptionBox, setShowDescriptionBox] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [printingKot, setPrintingKot] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     getMenuItems().then(setMenuItems).catch(console.error);
@@ -112,43 +113,54 @@ export default function OrderByAdmin() {
         </div>
       </section>
 
-      <section className="bg-white rounded-t-2xl lg:rounded-2xl border-t lg:border border-gray-200 p-5 
-        fixed bottom-0 left-0 right-0 z-50 lg:static lg:sticky lg:top-6 lg:h-fit max-h-[60vh] lg:max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl lg:shadow-sm"
+      <section className={`bg-white rounded-t-2xl lg:rounded-2xl border-t lg:border border-gray-200 p-5 
+        fixed bottom-0 left-0 right-0 z-50 lg:static lg:sticky lg:top-6 lg:h-fit ${isCollapsed ? 'max-h-fit' : 'max-h-[60vh]'} lg:max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl lg:shadow-sm`}
       >
+        <div className="flex justify-between items-center lg:hidden">
+          <span className="font-bold text-gray-700">{selected.length} Items Selected</span>
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+            {isCollapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </button>
+        </div>
+
         <h2 className="text-xl font-bold hidden lg:block">Selected Items</h2>
 
-        <div className="mt-2 lg:mt-4 space-y-3 overflow-y-auto pr-2 no-scrollbar">
-          {selected.map(({ item, quantity }) => (
-            <div key={item.id} className="border-b pb-3"><div className="flex justify-between gap-3"><span className="font-medium">{getLocalizedField(item.name, "English")}</span><button onClick={() => changeQuantity(item.id, -quantity)} title="Remove item" className="text-red-600"><Trash2 size={17} /></button></div><div className="mt-2 flex items-center justify-between"><span>₹{getItemPrice(item) * quantity}</span><span className="flex items-center gap-2"><button onClick={() => changeQuantity(item.id, -1)} title="Decrease quantity" className="border rounded p-1"><Minus size={15} /></button><span>{quantity}</span><button onClick={() => changeQuantity(item.id, 1)} title="Increase quantity" className="border rounded p-1"><Plus size={15} /></button></span></div></div>
-          ))}
-          {selected.length === 0 && <p className="text-gray-500 pb-2">No items selected.</p>}
-        </div>
-
-        <div className="shrink-0">
-          <div className="mt-5 flex justify-between border-t pt-4 font-bold text-lg">
-            <span>Total</span>
-            <span>₹{total}</span>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button onClick={() => setShowDescriptionBox(!showDescriptionBox)} className="w-full text-olive border-2 border-olive rounded-xl py-3 font-semibold hover:bg-olive/10 hidden lg:block">
-              {showDescriptionBox ? "Hide Description" : "Add Description"}
-            </button>
-            <button onClick={placeOrder} disabled={placing} className="w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60 col-span-2 lg:col-span-1">
-              {placing ? "Printing..." : "Order & Print KOT"}
-            </button>
-          </div>
-          {showDescriptionBox && (
-            <div className="mt-3 hidden lg:block">
-              <textarea
-                className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-olive"
-                rows={3}
-                placeholder="Add order description (prints on KOT)..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
+        {!isCollapsed && (
+          <>
+            <div className="mt-2 lg:mt-4 space-y-3 overflow-y-auto pr-2 no-scrollbar">
+              {selected.map(({ item, quantity }) => (
+                <div key={item.id} className="border-b pb-3"><div className="flex justify-between gap-3"><span className="font-medium">{getLocalizedField(item.name, "English")}</span><button onClick={() => changeQuantity(item.id, -quantity)} title="Remove item" className="text-red-600"><Trash2 size={17} /></button></div><div className="mt-2 flex items-center justify-between"><span>₹{getItemPrice(item) * quantity}</span><span className="flex items-center gap-2"><button onClick={() => changeQuantity(item.id, -1)} title="Decrease quantity" className="border rounded p-1"><Minus size={15} /></button><span>{quantity}</span><button onClick={() => changeQuantity(item.id, 1)} title="Increase quantity" className="border rounded p-1"><Plus size={15} /></button></span></div></div>
+              ))}
+              {selected.length === 0 && <p className="text-gray-500 pb-2">No items selected.</p>}
             </div>
-          )}
-        </div>
+
+            <div className="shrink-0">
+              <div className="mt-5 flex justify-between border-t pt-4 font-bold text-lg">
+                <span>Total</span>
+                <span>₹{total}</span>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button onClick={() => setShowDescriptionBox(!showDescriptionBox)} className="w-full text-olive border-2 border-olive rounded-xl py-3 font-semibold hover:bg-olive/10 hidden lg:block">
+                  {showDescriptionBox ? "Hide Description" : "Add Description"}
+                </button>
+                <button onClick={placeOrder} disabled={placing} className="w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60 col-span-2 lg:col-span-1">
+                  {placing ? "Printing..." : "Order & Print KOT"}
+                </button>
+              </div>
+              {showDescriptionBox && (
+                <div className="mt-3 hidden lg:block">
+                  <textarea
+                    className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-olive"
+                    rows={3}
+                    placeholder="Add order description (prints on KOT)..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </section>
     </div>
   </div>;
