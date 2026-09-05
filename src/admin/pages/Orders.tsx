@@ -56,28 +56,24 @@ function getPeriodOrders(orders: any[], daysAgo: number) {
   });
 }
 
-function getDailyOrders(orders: any[]) {
-  return getPeriodOrders(orders, 1);
-}
-
-function get15DayOrders(orders: any[]) {
-  return getPeriodOrders(orders, 15);
-}
-
-function getMonthlyOrders(orders: any[]) {
+function getDailyOrders(orders: any[], isAutoScheduled: boolean = false) {
   const now = new Date();
-  const bizDate = new Date(now);
-  if (bizDate.getHours() < 7) {
-    bizDate.setDate(bizDate.getDate() - 1);
+  const shiftEnd = new Date(now);
+  shiftEnd.setDate(shiftEnd.getDate() + 1);
+  shiftEnd.setHours(23, 59, 59, 999);
+
+  const shiftStart = new Date(now);
+  if (isAutoScheduled) {
+    // Scheduled auto-download: standard completed shift window
+    shiftStart.setDate(shiftStart.getDate() - 1);
+    shiftStart.setHours(6, 0, 0, 0);
+  } else {
+    // Manual click: include all payments done till today (past 3 days accumulation)
+    shiftStart.setDate(shiftStart.getDate() - 3);
+    shiftStart.setHours(0, 0, 0, 0);
   }
 
-  const shiftStart = new Date(bizDate.getFullYear(), bizDate.getMonth(), 1, 6, 0, 0, 0);
-  
-  const shiftEnd = new Date(bizDate);
-  shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(4, 0, 0, 0);
-
-  return orders.filter((order) => {
+  const matched = orders.filter((order) => {
     const created = parseOrderDate(order.createdAt);
     if (!created) return false;
     return (
@@ -86,6 +82,58 @@ function getMonthlyOrders(orders: any[]) {
       isEligibleForReport(order)
     );
   });
+
+  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
+}
+
+function get15DayOrders(orders: any[]) {
+  const now = new Date();
+  const shiftEnd = new Date(now);
+  shiftEnd.setDate(shiftEnd.getDate() + 1);
+  shiftEnd.setHours(23, 59, 59, 999);
+
+  // Past 15 days window up to now
+  const shiftStart = new Date(now);
+  shiftStart.setDate(shiftStart.getDate() - 15);
+  shiftStart.setHours(0, 0, 0, 0);
+
+  const matched = orders.filter((order) => {
+    const created = parseOrderDate(order.createdAt);
+    if (!created) return false;
+    return (
+      created >= shiftStart &&
+      created <= shiftEnd &&
+      isEligibleForReport(order)
+    );
+  });
+
+  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
+}
+
+function getMonthlyOrders(orders: any[]) {
+  const now = new Date();
+  const shiftEnd = new Date(now);
+  shiftEnd.setDate(shiftEnd.getDate() + 1);
+  shiftEnd.setHours(23, 59, 59, 999);
+
+  let shiftStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  if (now.getDate() <= 5) {
+    shiftStart = new Date(now);
+    shiftStart.setDate(shiftStart.getDate() - 30);
+    shiftStart.setHours(0, 0, 0, 0);
+  }
+
+  const matched = orders.filter((order) => {
+    const created = parseOrderDate(order.createdAt);
+    if (!created) return false;
+    return (
+      created >= shiftStart &&
+      created <= shiftEnd &&
+      isEligibleForReport(order)
+    );
+  });
+
+  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
 }
 
 export default function Orders() {
@@ -110,11 +158,11 @@ export default function Orders() {
       const currentHour = now.getHours();
       const dayOfMonth = now.getDate();
 
-      // Daily Check (Triggered after 1:00 AM for the previous day's shift)
+      // Daily Check (Triggered after 1:00 AM or when app is opened next day)
       if (currentHour >= 1) {
         const lastAutoDownload = localStorage.getItem("lastAutoDownloadDate_daily");
         if (lastAutoDownload !== todayStr) {
-          const shiftOrders = getDailyOrders(orders);
+          const shiftOrders = getDailyOrders(orders, true);
           if (shiftOrders.length > 0) {
             exportOrdersExcel(shiftOrders, true, "Daily");
             localStorage.setItem("lastAutoDownloadDate_daily", todayStr);
@@ -182,33 +230,51 @@ export default function Orders() {
     }
   }
 
+  function handleDownloadReport(type: "Daily" | "15Days" | "Monthly") {
+    let list: any[] = [];
+    if (type === "Daily") list = getDailyOrders(orders);
+    else if (type === "15Days") list = get15DayOrders(orders);
+    else if (type === "Monthly") list = getMonthlyOrders(orders);
+
+    if (list.length === 0) {
+      const fallback = orders.filter(isEligibleForReport);
+      if (fallback.length === 0) {
+        alert(`No order history found to generate ${type} report.`);
+        return;
+      }
+      exportOrdersExcel(fallback, false, type);
+    } else {
+      exportOrdersExcel(list, false, type);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex gap-3 flex-wrap">
         <button
-          onClick={() => exportOrdersExcel(getDailyOrders(orders), false, "Daily")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
+          onClick={() => handleDownloadReport("Daily")}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
         >
           Download Daily Excel
         </button>
         
         <button
-          onClick={() => exportOrdersExcel(get15DayOrders(orders), false, "15Days")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
+          onClick={() => handleDownloadReport("15Days")}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
         >
           Download 15 Days Excel
         </button>
 
         <button
-          onClick={() => exportOrdersExcel(getMonthlyOrders(orders), false, "Monthly")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
+          onClick={() => handleDownloadReport("Monthly")}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
         >
           Download Monthly Excel
         </button>
 
         <button
           onClick={handleDeleteAll}
-          className="bg-gray-900 hover:bg-black text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap"
+          className="bg-gray-900 hover:bg-black text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
         >
           Delete All Orders
         </button>
