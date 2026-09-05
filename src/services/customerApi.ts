@@ -48,16 +48,73 @@ export async function getTables() {
   return result.data || [];
 }
 
-export async function getMenuItems() {
-  const result = await requestJson(`${API_BASE_URL}/api/menu`, { method: "GET" });
-  const items = Array.isArray(result) ? result : result.data || [];
-  if (items && items.length > 0) {
-    try {
-      localStorage.setItem("restaurant_menu", JSON.stringify(items));
-    } catch (err) {
-      console.warn("localStorage setItem failed:", err);
+export async function getMenuVersionApi(): Promise<number> {
+  try {
+    const result = await requestJson(`${API_BASE_URL}/api/menu/version`, { method: "GET" });
+    return (result && typeof result.version === "number") ? result.version : 1;
+  } catch (err) {
+    console.warn("Failed to fetch menu version, fallback to 1:", err);
+    return 1;
+  }
+}
+
+// Client-side in-memory and localStorage cache partitioned by language and version
+const inMemoryMenuCache: Record<string, { version: number; items: any[] }> = {};
+
+export function getCachedMenuByLang(langCode: string, serverVersion?: number): any[] | null {
+  const normalizedLang = (langCode || "en").toLowerCase().trim();
+
+  // 1. Check in-memory cache
+  if (inMemoryMenuCache[normalizedLang]) {
+    const entry = inMemoryMenuCache[normalizedLang];
+    if (serverVersion === undefined || entry.version === serverVersion) {
+      return entry.items;
     }
   }
+
+  // 2. Check localStorage
+  try {
+    const key = `rustic_menu_${normalizedLang}`;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        if (serverVersion === undefined || parsed.version === serverVersion) {
+          inMemoryMenuCache[normalizedLang] = parsed;
+          return parsed.items;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Error reading from menu cache:", err);
+  }
+
+  return null;
+}
+
+export function setCachedMenuByLang(langCode: string, version: number, items: any[]): void {
+  const normalizedLang = (langCode || "en").toLowerCase().trim();
+  const cacheEntry = {
+    language: normalizedLang,
+    version,
+    items,
+  };
+  inMemoryMenuCache[normalizedLang] = cacheEntry;
+  try {
+    localStorage.setItem(`rustic_menu_${normalizedLang}`, JSON.stringify(cacheEntry));
+    // Also keep restaurant_menu updated for general fallback
+    if (normalizedLang === "en") {
+      localStorage.setItem("restaurant_menu", JSON.stringify(items));
+    }
+  } catch (err) {
+    console.warn("Error saving to menu cache:", err);
+  }
+}
+
+export async function getMenuItems(lang?: string) {
+  const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  const result = await requestJson(`${API_BASE_URL}/api/menu${query}`, { method: "GET" });
+  const items = Array.isArray(result) ? result : result.data || [];
   return items;
 }
 
@@ -89,20 +146,61 @@ export async function getOffers(): Promise<Offer[]> {
   return result || [];
 }
 
+export function listenToMenuVersion(
+  onVersionChanged: (newVersion: number) => void,
+  initialVersion = 1,
+  pollIntervalMs = 60000
+) {
+  let active = true;
+  let timer: number | undefined;
+  let currentVersion = initialVersion;
+
+  async function check() {
+    if (!active) return;
+    try {
+      const v = await getMenuVersionApi();
+      if (active && v !== currentVersion) {
+        currentVersion = v;
+        onVersionChanged(v);
+      }
+    } catch (err) {
+      console.warn("Menu version check failed:", err);
+    } finally {
+      if (active) {
+        timer = window.setTimeout(check, pollIntervalMs);
+      }
+    }
+  }
+
+  timer = window.setTimeout(check, pollIntervalMs);
+
+  return () => {
+    active = false;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  };
+}
+
 export function listenToMenuItems(
   callback: (items: any[]) => void,
   pollIntervalMs = 60000
 ) {
   let active = true;
   let timer: number | undefined;
+  let lastKnownVersion: number | null = null;
 
   async function refresh() {
     if (!active) return;
     try {
-      const items = await getMenuItems();
-      callback(items);
+      const v = await getMenuVersionApi();
+      if (lastKnownVersion === null || v !== lastKnownVersion) {
+        lastKnownVersion = v;
+        const items = await getMenuItems();
+        if (active) callback(items);
+      }
     } catch (err) {
-      console.error("Failed to fetch customer menu items:", err);
+      console.error("Failed to check menu version:", err);
     } finally {
       if (active) {
         timer = window.setTimeout(refresh, pollIntervalMs);
@@ -120,10 +218,10 @@ export function listenToMenuItems(
   };
 }
 
-/** Continuously polls the tables list so the customer app detects admin-freed tables in real-time. */
+/** Continuously polls the tables list every 20 seconds so the customer app detects admin-freed tables in real-time. */
 export function listenToTables(
   callback: (tables: any[]) => void,
-  pollIntervalMs = 30000
+  pollIntervalMs = 20000
 ) {
   let active = true;
   let timer: number | undefined;

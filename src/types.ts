@@ -159,6 +159,28 @@ export function getMenuPriceOptions(item: Partial<MenuItem> | null | undefined):
   return [{ quantity: 1, amount: fallbackPrice }];
 }
 
+export function getPriceOptionLabel(option: PriceOption): string {
+  if (option.unit && option.unit.trim()) {
+    const u = option.unit.trim();
+    if (
+      isNaN(Number(u)) &&
+      (u.toLowerCase().includes("half") ||
+        u.toLowerCase().includes("full") ||
+        u.toLowerCase().includes("small") ||
+        u.toLowerCase().includes("large") ||
+        u.toLowerCase().includes("medium") ||
+        u.toLowerCase().includes("glass") ||
+        u.toLowerCase().includes("bottle") ||
+        u.toLowerCase().includes("portion") ||
+        u.toLowerCase().includes("plate"))
+    ) {
+      return u;
+    }
+    return `${option.quantity} ${u}`;
+  }
+  return `${option.quantity} ${option.quantity === 1 ? "piece" : "pieces"}`;
+}
+
 export function getMenuPriceLabel(item: Partial<MenuItem> | null | undefined): string {
   if (item && (item as any).metadata?.isMarketPrice) {
     return "Market Price";

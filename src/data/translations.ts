@@ -47,7 +47,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'Intensely Hot',
     changeLanguage: 'Change Language',
     successTitle: 'Order Placed',
-    successSubtitle: 'Sit back and enjoy the atmosphere. Your journey has begun.'
+    successSubtitle: 'Sit back and enjoy the atmosphere. Your journey has begun.',
+    orderWillReachSoon: 'Your order will reach soon',
+    thankYouSmile: 'Thank you 😊'
   },
   Russian: {
     welcome: 'Изысканная европейская гастрономия',
@@ -95,7 +97,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'Очень остро',
     changeLanguage: 'Сменить язык',
     successTitle: 'Заказ оформлен',
-    successSubtitle: 'Отдыхайте и наслаждайтесь атмосферой. Мы уже готовим.'
+    successSubtitle: 'Отдыхайте и наслаждайтесь атмосферой. Мы уже готовим.',
+    orderWillReachSoon: 'Ваш заказ скоро прибудет',
+    thankYouSmile: 'Спасибо 😊'
   },
   German: {
     welcome: 'Exquisite europäische Gastronomie',
@@ -143,7 +147,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'Sehr scharf',
     changeLanguage: 'Sprache ändern',
     successTitle: 'Bestellt',
-    successSubtitle: 'Lehnen Sie sich zurück und genießen Sie das Ambiente.'
+    successSubtitle: 'Lehnen Sie sich zurück und genießen Sie das Ambiente.',
+    orderWillReachSoon: 'Ihre Bestellung kommt in Kürze an',
+    thankYouSmile: 'Vielen Dank 😊'
   },
   Spanish: {
     welcome: 'Exquisita Gastronomía Europea',
@@ -191,7 +197,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'Muy Picante',
     changeLanguage: 'Cambiar Idioma',
     successTitle: 'Pedido Realizado',
-    successSubtitle: 'Relájese y disfrute de la atmósfera. Su experiencia ha comenzado.'
+    successSubtitle: 'Relájese y disfrute de la atmósfera. Su experiencia ha comenzado.',
+    orderWillReachSoon: 'Su pedido llegará pronto',
+    thankYouSmile: '¡Muchas gracias! 😊'
   },
   Kazakh: {
     welcome: 'Керемет Еуропалық Гастрономия',
@@ -239,7 +247,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'Өте ащы',
     changeLanguage: 'Тілді өзгерту',
     successTitle: 'Тапсырыс қабылданды',
-    successSubtitle: 'Жайғасып, жайлы атмосферадан ләззат алыңыз.'
+    successSubtitle: 'Жайғасып, жайлы атмосферадан ләззат алыңыз.',
+    orderWillReachSoon: 'Тапсырысыңыз жақын арада жетеді',
+    thankYouSmile: 'Рахмет 😊'
   },
   Hebrew: {
     welcome: 'גסטרונומיה אירופאית משובחת',
@@ -287,7 +297,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: 'חריף מאוד',
     changeLanguage: 'שנה שפה',
     successTitle: 'ההזמנה בוצעה',
-    successSubtitle: 'התרווחו ותיהנו מהאווירה. החוויה שלכם מתחילה עכשיו.'
+    successSubtitle: 'התרווחו ותיהנו מהאווירה. החוויה שלכם מתחילה עכשיו.',
+    orderWillReachSoon: 'ההזמנה שלך תגיע בקרוב',
+    thankYouSmile: 'תודה רבה 😊'
   },
   Japanese: {
     welcome: '洗練された欧州ガストロノミー',
@@ -335,7 +347,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: '激辛',
     changeLanguage: '言語を変更する',
     successTitle: '注文完了',
-    successSubtitle: 'お席でゆっくりと居心地の良い雰囲気をお楽しみください。'
+    successSubtitle: 'お席でゆっくりと居心地の良い雰囲気をお楽しみください。',
+    orderWillReachSoon: 'ご注文はまもなくお届けいたします',
+    thankYouSmile: 'ありがとうございます 😊'
   },
   Korean: {
     welcome: '엄선된 유럽피안 가스트로노미',
@@ -383,6 +397,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     spicyHot: '아주 매움',
     changeLanguage: '언어 변경',
     successTitle: '주문 완료',
-    successSubtitle: '편안한 분위기에서 잠시만 기다려 주십시오. 최고의 요리로 보답하겠습니다.'
+    successSubtitle: '편안한 분위기에서 잠시만 기다려 주십시오. 최고의 요리로 보답하겠습니다.',
+    orderWillReachSoon: '주문하신 음식이 곧 도착합니다',
+    thankYouSmile: '감사합니다 😊'
   }
 };

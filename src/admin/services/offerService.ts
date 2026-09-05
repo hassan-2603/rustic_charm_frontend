@@ -13,7 +13,7 @@ export function listenToOffers(callback: (offers: Offer[]) => void) {
 
   const interval = setInterval(() => {
     fetchOffers().catch((err) => console.error("Error loading offers:", err));
-  }, 5000);
+  }, 60000);
 
   return () => clearInterval(interval);
 }

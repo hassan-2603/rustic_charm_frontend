@@ -10,7 +10,7 @@ import {
   FileText,
 } from "lucide-react";
 import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
-import { listenTables } from "../services/tableApi";
+import { listenTables, freeTable } from "../services/tableApi";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
 import { getKotSections } from "../../services/settingsService";
 import type { PrintJob } from "../../services/printApi";
@@ -102,10 +102,23 @@ export default function OrderDetailsDrawer({
     }
     setSavingPayment(true);
     try {
-      await updateOrder(order.id, { paymentMethod: selectedPaymentMethod, status: 'Completed', completedAt: new Date().toISOString() });
+      await updateOrder(order.id, {
+        paymentMethod: selectedPaymentMethod,
+        paymentStatus: 'Paid',
+        status: 'Completed',
+        completedAt: new Date().toISOString()
+      });
       order.status = 'Completed';
       order.paymentMethod = selectedPaymentMethod;
-      alert("Payment method saved & Order Completed.");
+      order.paymentStatus = 'Paid';
+
+      const targetTableId = order.tableId || tables.find((t: any) => t.tableKey === order.tableReference || t.id === order.tableReference)?.id;
+      if (targetTableId) {
+        await freeTable(targetTableId);
+      }
+
+      alert("Payment saved, Order Completed, and Table Freed.");
+      onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Unable to save payment method.");
     } finally {

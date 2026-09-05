@@ -20,7 +20,7 @@ export function listenTables(callback: (tables: any[]) => void, onError: (err: E
   };
 
   load();
-  const interval = setInterval(load, 5000);
+  const interval = setInterval(load, 20000);
 
   return () => {
     active = false;

@@ -64,7 +64,7 @@ export function listenTables(callback: (tables: any[]) => void) {
   };
 
   load();
-  const interval = setInterval(load, 5000);
+  const interval = setInterval(load, 20000);
 
   return () => {
     active = false;
@@ -104,14 +104,26 @@ export async function serveOrder(orderId: string) {
   });
 }
 
-export async function endSession(order: any) {
+export async function freeTable(tableId: string) {
+  return requestAdminJson(`/tables/${tableId}`, {
+    method: "PUT",
+    body: JSON.stringify({ occupied: false, status: "available", currentOrderId: "", currentSessionId: "" }),
+  });
+}
+
+export async function savePaymentAndEndSession(order: any, paymentMethod: string) {
   const updates: Promise<any>[] = [];
 
-  // Mark order as Completed
+  // Mark order as Completed with paymentMethod and completedAt
   updates.push(
     requestAdminJson(`/orders/${order.id}`, {
       method: "PUT",
-      body: JSON.stringify({ status: "Completed", completedAt: new Date().toISOString() }),
+      body: JSON.stringify({
+        status: "Completed",
+        paymentStatus: "Paid",
+        paymentMethod: paymentMethod,
+        completedAt: new Date().toISOString(),
+      }),
     })
   );
 
@@ -139,11 +151,15 @@ export async function endSession(order: any) {
         );
       }
     } catch {
-      // best-effort: don't fail the whole endSession just because table lookup failed
+      // best-effort: don't fail the whole operation just because table lookup failed
     }
   }
 
   return Promise.all(updates);
+}
+
+export async function endSession(order: any, paymentMethod: string = "Cash") {
+  return savePaymentAndEndSession(order, order.paymentMethod || paymentMethod);
 }
 
 export async function rejectOrder(orderId: string) {

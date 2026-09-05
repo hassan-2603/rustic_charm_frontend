@@ -15,7 +15,21 @@ import {
   getMenuPriceLabel,
   Offer
 } from '../types';
-import { getTables, createOrder, listenToSessionOrders, requestBill, callWaiter, getMenuItems, getCategories, listenToTables } from '../services/customerApi';
+import {
+  getTables,
+  createOrder,
+  listenToSessionOrders,
+  requestBill,
+  callWaiter,
+  getMenuItems,
+  getCategories,
+  listenToTables,
+  getMenuVersionApi,
+  getCachedMenuByLang,
+  setCachedMenuByLang,
+  listenToMenuVersion,
+  listenToOffers
+} from '../services/customerApi';
 import OffersSection from "../components/OffersSection";
 import { TRANSLATIONS } from '../data/translations';
 import Logo from '../components/Logo';
@@ -32,12 +46,25 @@ import { generateTables } from "../generateTables";
 import { uploadCategories } from "./uploadCategories";
 import { uploadMenu } from "./uploadMenu";
 
+const LANG_TO_CODE: Record<Language, string> = {
+  English: 'en',
+  Russian: 'ru',
+  German: 'de',
+  Spanish: 'es',
+  Kazakh: 'kk',
+  Hebrew: 'he',
+  Japanese: 'ja',
+  Korean: 'ko',
+};
+
 export default function CustomerApp() {
   console.log("CustomerApp mounted");
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('rustic_charm_language');
     return (saved as Language) || 'English';
   });
+  const languageRef = useRef<Language>(language);
+  const menuVersionRef = useRef<number>(1);
   const [page, setPage] = useState<Page>(() => {
     const savedSession = localStorage.getItem("rusticSession");
 
@@ -141,12 +168,14 @@ export default function CustomerApp() {
     cleanupSessionListener();
     const session = JSON.parse(localStorage.getItem("rusticSession") || "{}");
     const nextSession = {
-      ...session,
       active: false,
       sessionId: crypto.randomUUID(),
+      table: session.table || currentTable || "",
       currentOrderId: "",
       currentOrderNumber: "",
       currentOrderStatus: "Pending",
+      customerName: "",
+      customerPhone: "",
       currentPage: "landing",
     };
     localStorage.setItem("rusticSession", JSON.stringify(nextSession));
@@ -154,6 +183,8 @@ export default function CustomerApp() {
     setHasActiveOrder(false);
     setSessionOrders([]);
     setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
     setCurrentOrderId("");
     setCurrentOrderNumber("");
     setCurrentOrderStatus("Pending");
@@ -164,14 +195,15 @@ export default function CustomerApp() {
     cleanupSessionListener();
     const session = JSON.parse(localStorage.getItem("rusticSession") || "{}");
     const nextSession = {
-      ...session,
       active: false,
+      sessionId: session.sessionId || crypto.randomUUID(),
       currentPage: "landing",
       currentOrderId: "",
       currentOrderNumber: "",
       currentOrderStatus: "Pending",
-      customerName: session.customerName || "",
-      customerPhone: session.customerPhone || "",
+      customerName: "",
+      customerPhone: "",
+      table: tableReference ?? session.table ?? "",
     };
     localStorage.setItem("rusticSession", JSON.stringify(nextSession));
     setCurrentOrderId("");
@@ -180,8 +212,8 @@ export default function CustomerApp() {
     setSessionOrders([]);
     setCart([]);
     setHasActiveOrder(false);
-    setCustomerName(session.customerName || "");
-    setCustomerPhone(session.customerPhone || "");
+    setCustomerName("");
+    setCustomerPhone("");
     setCurrentTable(tableReference ?? null);
     setTableValidationError(null);
   };
@@ -231,74 +263,134 @@ export default function CustomerApp() {
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
+    languageRef.current = lang;
     localStorage.setItem('rustic_charm_language', lang);
-  };
-  async function getCachedMenu() {
-    const cached = localStorage.getItem("restaurant_menu");
 
-    getMenuItems()
-      .then((items) => {
-        if (items && items.length > 0) {
-          setMenuItems(items);
-        }
-      })
-      .catch((err) => console.error("Error fetching fresh menu on mount:", err));
-
-    if (cached) {
-      console.log("Using cached menu");
-      return JSON.parse(cached);
+    const langCode = LANG_TO_CODE[lang] || 'en';
+    const cached = getCachedMenuByLang(langCode, menuVersionRef.current);
+    if (cached && cached.length > 0) {
+      setMenuItems(cached);
+    } else {
+      getMenuItems(langCode)
+        .then((items) => {
+          if (items && items.length > 0) {
+            setCachedMenuByLang(langCode, menuVersionRef.current, items);
+            setMenuItems(items);
+          }
+        })
+        .catch((err) => console.error(`Error fetching menu for ${langCode}:`, err));
     }
+  };
 
-    console.log("Downloading latest menu");
-
-    const items = await getMenuItems();
-
-    localStorage.setItem(
-      "restaurant_menu",
-      JSON.stringify(items)
-    );
-
-    return items;
-  }
   useEffect(() => {
-    async function loadInitialData() {
-      const [items, cats] = await Promise.all([
-        getCachedMenu(),
-        getCategories(),
-      ]);
+    let isCancelled = false;
 
-      setMenuItems(items);
-      setCategories(cats);
+    async function loadInitialData() {
+      try {
+        const version = await getMenuVersionApi();
+        menuVersionRef.current = version;
+
+        const langCode = LANG_TO_CODE[languageRef.current] || 'en';
+        const cached = getCachedMenuByLang(langCode, version);
+        if (cached && cached.length > 0) {
+          if (!isCancelled) setMenuItems(cached);
+        } else {
+          try {
+            const fresh = await getMenuItems(langCode);
+            if (!isCancelled && fresh && fresh.length > 0) {
+              setCachedMenuByLang(langCode, version, fresh);
+              setMenuItems(fresh);
+            }
+          } catch (err) {
+            console.error("Error fetching fresh menu on mount:", err);
+            const fallback = getCachedMenuByLang(langCode);
+            if (!isCancelled && fallback) setMenuItems(fallback);
+          }
+        }
+      } catch (err) {
+        console.error("Error initializing menu data:", err);
+      }
+
+      try {
+        const cats = await getCategories();
+        if (!isCancelled && cats && cats.length > 0) {
+          setCategories(cats);
+        }
+      } catch (err) {
+        console.error("Error fetching categories on mount:", err);
+      }
     }
 
     loadInitialData();
 
-    // Start live table polling — detects admin-freed tables and waiter End Session in real-time
+    // Lightweight menu version polling every 60s
+    const unsubscribeVersion = listenToMenuVersion(async (newVersion) => {
+      menuVersionRef.current = newVersion;
+      const langCode = LANG_TO_CODE[languageRef.current] || 'en';
+      try {
+        const fresh = await getMenuItems(langCode);
+        if (fresh && fresh.length > 0) {
+          setCachedMenuByLang(langCode, newVersion, fresh);
+          setMenuItems(fresh);
+        }
+      } catch (err) {
+        console.error("Failed to update menu on version change:", err);
+      }
+    }, menuVersionRef.current, 60000);
+
+    // Offers polling every 60s
+    const unsubscribeOffers = listenToOffers((newOffers) => {
+      setOffers(newOffers || []);
+    }, 60000);
+
+    // Live table polling every 20s — detects admin-freed tables and waiter End Session in real-time
     const unsubscribeTables = listenToTables(async (tbls) => {
       if (tbls.length === 0) {
         await generateTables();
         return; // will get fresh tables on next poll
       }
       setTables(tbls);
-    });
+    }, 20000);
 
-    return () => unsubscribeTables();
+    return () => {
+      isCancelled = true;
+      unsubscribeVersion();
+      unsubscribeOffers();
+      unsubscribeTables();
+    };
 
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const table = params.get("table");
+    const tableParam = params.get("table") || params.get("t");
 
-    if (!table) return;
     if (tables.length === 0) return;
 
-    const tableReference = table.trim();
-    const matchingTable = tables.find((candidate) => resolveTableFromReference([candidate], tableReference));
+    if (!tableParam) {
+      const existing = JSON.parse(localStorage.getItem("rusticSession") || "{}");
+      if (existing.table) {
+        const matchingSavedTable = resolveTableFromReference(tables, existing.table);
+        if (matchingSavedTable) {
+          setCurrentTable(matchingSavedTable.tableKey || matchingSavedTable.id);
+          setTableValidationError(null);
+        } else {
+          setCurrentTable(null);
+          setTableValidationError("Not a valid table. Please scan the QR code on your table to start ordering.");
+        }
+      } else {
+        setCurrentTable(null);
+        setTableValidationError("Not a valid table. Please scan the QR code on your table to start ordering.");
+      }
+      return;
+    }
+
+    const tableReference = tableParam.trim();
+    const matchingTable = resolveTableFromReference(tables, tableReference);
 
     if (!matchingTable) {
       resetCustomerState(null);
-      setTableValidationError("This table link is invalid. Please open the app from a registered table link such as http://localhost:3000/?table=deck-area-1.");
+      setTableValidationError("Not a valid table. Please scan the QR code on your table to access the menu.");
       const existing = JSON.parse(localStorage.getItem("rusticSession") || "{}");
       if (existing.table) {
         localStorage.removeItem("rusticSession");
@@ -307,43 +399,51 @@ export default function CustomerApp() {
     }
 
     const existing = JSON.parse(localStorage.getItem("rusticSession") || "{}");
-    const sessionTable = existing.sessionId && existing.active
-      ? tables.find((candidate) => candidate.currentSessionId === existing.sessionId)
-      : null;
-    const effectiveTable = sessionTable || matchingTable;
-    const sameTableLink = existing.table === tableReference && existing.sessionId;
+    const targetTableRef = matchingTable.tableKey || matchingTable.id;
+    const isSameTable = existing.table && (
+      resolveTableFromReference([matchingTable], existing.table) !== null ||
+      matchingTable.tableKey === existing.table ||
+      matchingTable.id === existing.table ||
+      existing.table === tableReference
+    );
 
-    if (!sameTableLink) {
-      if (sessionTable) {
-        setCurrentTable(sessionTable.tableKey || sessionTable.id);
-        setTableValidationError(null);
-        persistSession({
-          active: existing.active,
-          sessionId: existing.sessionId,
-          table: sessionTable.tableKey || sessionTable.id,
-        });
+    if (isSameTable && existing.sessionId) {
+      if (matchingTable.status === "available" && !matchingTable.currentSessionId && existing.active) {
+        console.log("Table was freed by admin/waiter, expiring session...");
+        expireSession();
         return;
       }
-      resetCustomerState(tableReference);
-      const nextSessionId = crypto.randomUUID();
-      persistSession({
-        active: false,
-        sessionId: nextSessionId,
-        table: tableReference,
-      });
-      setSessionId(nextSessionId);
-      setPage("landing");
-    } else {
-      setCurrentTable(effectiveTable.tableKey || effectiveTable.id || tableReference);
+      setCurrentTable(targetTableRef);
       setTableValidationError(null);
       persistSession({
-        active: existing.active ?? false,
-        sessionId: existing.sessionId,
-        table: effectiveTable.tableKey || effectiveTable.id || tableReference,
+        table: targetTableRef,
       });
+    } else {
+      const nextSessionId = crypto.randomUUID();
+      const nextSession = {
+        active: false,
+        sessionId: nextSessionId,
+        table: targetTableRef,
+        currentOrderId: "",
+        currentOrderNumber: "",
+        currentOrderStatus: "Pending",
+        customerName: "",
+        customerPhone: "",
+        currentPage: "landing",
+      };
+      localStorage.setItem("rusticSession", JSON.stringify(nextSession));
+      setSessionId(nextSessionId);
+      setCurrentTable(targetTableRef);
+      setCustomerName("");
+      setCustomerPhone("");
+      setSessionOrders([]);
+      setCart([]);
+      setHasActiveOrder(false);
+      setTableValidationError(null);
+      setPage("landing");
     }
 
-    console.log("QR TABLE:", tableReference);
+    console.log("QR TABLE RESOLVED:", matchingTable);
   }, [tables]);
   useEffect(() => {
 
@@ -415,7 +515,7 @@ export default function CustomerApp() {
   // Keep the initial fetches to a single load so the app does not hammer the API
   // on every mount or on a rapid polling loop.
   useEffect(() => {
-    if (page !== 'menu') return;
+    if (page !== 'menu' || categories.length > 0) return;
     getCategories().then((data) => {
       if (Array.isArray(data) && data.length > 0) {
         setCategories(data);
@@ -423,7 +523,7 @@ export default function CustomerApp() {
     }).catch(() => {
       // Ignore transient category fetch errors; the page can still render the cached view.
     });
-  }, [page]);
+  }, [page, categories.length]);
 
 
 
@@ -494,7 +594,7 @@ export default function CustomerApp() {
               currentOrderStatus: latest.status,
             });
 
-            if (latest.status === "Payment Done" || latest.status === "Completed" || latest.status === "Session Ended") {
+            if (latest.status === "Session Ended" || latest.status === "Completed") {
               expireSession();
               return;
             }
@@ -681,27 +781,6 @@ export default function CustomerApp() {
   };
 
   const handleResetOrder = () => {
-    const existingSession = JSON.parse(localStorage.getItem("rusticSession") || "{}");
-    const newSessionId = existingSession.sessionId || crypto.randomUUID();
-    const nextSession = {
-      ...existingSession,
-      active: false,
-      sessionId: newSessionId,
-      table: existingSession.table || currentTable,
-      currentOrderId: existingSession.currentOrderId || "",
-      currentOrderNumber: existingSession.currentOrderNumber || "",
-      currentOrderStatus: "Pending",
-      customerName: existingSession.customerName || "",
-      customerPhone: existingSession.customerPhone || "",
-    };
-    localStorage.setItem("rusticSession", JSON.stringify(nextSession));
-    setSessionId(newSessionId);
-    setCurrentOrderId(nextSession.currentOrderId);
-    setCurrentOrderNumber(nextSession.currentOrderNumber);
-    setCurrentOrderStatus("Pending");
-    setHasActiveOrder(false);
-    setSessionOrders([]);
-    setCart([]);
     setStoredPage('landing');
   };
   async function handleRequestBill() {
@@ -888,28 +967,44 @@ export default function CustomerApp() {
               {/* Table Info & Call to Action */}
               <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4 sm:gap-6" id="landing-cta-section">
                 {/* Elegant Table Card */}
-                <div className="bg-white border border-light-gray/60 px-6 py-4 rounded-2xl shadow-2xs flex items-center justify-center gap-3 w-full">
-                  <div className="w-2.5 h-2.5 rounded-full bg-olive animate-pulse" />
+                <div className={`border px-6 py-4 rounded-2xl shadow-2xs flex items-center justify-center gap-3 w-full transition-all ${
+                  currentTable && !tableValidationError
+                    ? "bg-white border-light-gray/60"
+                    : "bg-amber-50/80 border-amber-200"
+                }`}>
+                  <div className={`w-2.5 h-2.5 rounded-full ${
+                    currentTable && !tableValidationError
+                      ? "bg-olive animate-pulse"
+                      : "bg-amber-500"
+                  }`} />
                   <span className="text-xs uppercase tracking-[0.15em] font-bold text-soft-gray">
-                    {t.table} {currentTable ? currentTable : "--"}
+                    {currentTable && !tableValidationError ? `${t.table} ${currentTable}` : "No Table Selected"}
                   </span>
                   <span className="text-light-gray">|</span>
-                  <span className="text-xs font-semibold text-charcoal uppercase tracking-wider">
-                    Guest Ordering
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${
+                    currentTable && !tableValidationError ? "text-charcoal" : "text-amber-800"
+                  }`}>
+                    {currentTable && !tableValidationError ? "Guest Ordering" : "Scan Table QR"}
                   </span>
                 </div>
 
                 {tableValidationError && (
-                  <div className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {tableValidationError}
+                  <div className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs sm:text-sm text-red-700 font-medium leading-relaxed text-center">
+                    ⚠️ {tableValidationError}
                   </div>
                 )}
 
                 {/* Primary Cta Button */}
                 <button
-                  onClick={() => setStoredPage('menu')}
+                  onClick={() => {
+                    if (!currentTable || !!tableValidationError) {
+                      alert("Not a valid table. Please scan the QR code on your table to access the menu.");
+                      return;
+                    }
+                    setStoredPage('menu');
+                  }}
                   disabled={!currentTable || !!tableValidationError}
-                  className="w-full bg-olive hover:bg-olive-dark text-white font-semibold text-sm tracking-widest uppercase py-3.5 sm:py-4.5 px-6 sm:px-8 rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-olive/10 cursor-pointer active:scale-98 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full bg-olive hover:bg-olive-dark text-white font-semibold text-sm tracking-widest uppercase py-3.5 sm:py-4.5 px-6 sm:px-8 rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-olive/10 cursor-pointer active:scale-98 flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-400"
                   id="start-ordering-button"
                 >
                   <span>{t.startOrdering}</span>
@@ -1197,6 +1292,19 @@ export default function CustomerApp() {
                 onBackToMenu={handleGoToMenu}
                 onResetOrder={handleGoToHome}
                 onRequestBill={handleRequestBill}
+                onCallWaiter={async () => {
+                  try {
+                    await callWaiter({
+                      tableReference: currentTable,
+                      sessionId,
+                      customerName,
+                      customerPhone,
+                      orderId: currentOrderId,
+                    });
+                  } catch (error) {
+                    console.error("Failed to notify waiter", error);
+                  }
+                }}
               />
             </main>
           </motion.div>

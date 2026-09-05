@@ -11,9 +11,10 @@ import type { DiscountPayload } from "../../utils/discountUtils";
 import type { PrintJob } from "../../services/printApi";
 import EditItemPricesModal from "../../components/EditItemPricesModal";
 
+import PaymentModal from "../components/PaymentModal";
 import {
     listenOrders,
-    endSession,
+    savePaymentAndEndSession,
     updateOrderStatus,
     updateOrderDiscount,
     cancelOrder,
@@ -64,14 +65,9 @@ export default function TableOrders() {
         setPaymentOrder(order);
     }
 
-    async function completePayment(method: string) {
-        if (!paymentOrder) return;
-        await updateOrderStatus(paymentOrder.id, "Payment Done", { paymentMethod: method });
+    async function handleSavePayment(order: any, method: string) {
+        await savePaymentAndEndSession(order, method);
         setPaymentOrder(null);
-    }
-
-    async function handleEndSession(order: any) {
-        await endSession(order);
     }
 
     async function handlePrintBill(order: any) {
@@ -190,8 +186,8 @@ export default function TableOrders() {
                         <OrderCard
                             key={order.id}
                             order={order}
-                            buttonText={order.status === "Payment Done" ? "End Session" : "💰 Payment Done"}
-                            onAction={order.status === "Payment Done" ? handleEndSession : handlePaymentDone}
+                            buttonText="💰 Payment Done"
+                            onAction={handlePaymentDone}
                             onSplit={handleOpenSplit}
                             onEditPrices={handleOpenEditPrices}
                             onDiscount={handleOpenDiscount}
@@ -210,20 +206,12 @@ export default function TableOrders() {
                 </div>
             )}
 
-            {paymentOrder && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-[420px]">
-                        <h2 className="text-2xl font-bold mb-6">Select Payment Method</h2>
-                        <div className="grid gap-4">
-                            <button onClick={() => completePayment("Card")} className="bg-blue-600 text-white rounded-xl py-4 font-semibold hover:bg-blue-700">Card</button>
-                            <button onClick={() => completePayment("Cash")} className="bg-orange-500 text-white rounded-xl py-4 font-semibold hover:bg-orange-600">Cash</button>
-                            <button onClick={() => completePayment("UPI")} className="bg-green-600 text-white rounded-xl py-4 font-semibold hover:bg-green-700">UPI</button>
-                            <button onClick={() => completePayment("Zomato")} className="bg-red-600 text-white rounded-xl py-4 font-semibold hover:bg-red-700">Zomato</button>
-                        </div>
-                        <button onClick={() => setPaymentOrder(null)} className="w-full mt-4 text-gray-500 font-semibold p-4">Close</button>
-                    </div>
-                </div>
-            )}
+            <PaymentModal
+                open={!!paymentOrder}
+                order={paymentOrder}
+                onClose={() => setPaymentOrder(null)}
+                onSavePayment={handleSavePayment}
+            />
 
             <DiscountModal open={!!discountOrder} order={discountOrder} onClose={() => setDiscountOrder(null)} onSave={handleSaveDiscount} />
             <AddItemModal open={!!addItemOrder} order={addItemOrder} onClose={() => setAddItemOrder(null)} onItemAdded={handleItemsAdded} />
