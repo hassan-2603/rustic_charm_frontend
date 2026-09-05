@@ -14,7 +14,11 @@ export default function Bills() {
   useEffect(() => {
     const unsubscribe = listenOrders((data) => {
       const completed = data.filter(
-        (o: any) => o.status === "Completed"
+        (o: any) =>
+          o.status === "Completed" ||
+          o.status === "Payment Done" ||
+          o.paymentStatus === "Paid" ||
+          (o.paymentMethod && o.status !== "Cancelled" && o.status !== "Rejected")
       );
 
       setOrders(completed);

@@ -176,11 +176,12 @@ export async function updateOrderDiscount(orderId: string, discountData: Record<
 
 export async function addOrderItems(
   orderId: string,
-  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>
+  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>,
+  description?: string
 ) {
   return requestAdminJson(`/orders/${orderId}/items`, {
     method: "POST",
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, description: description?.trim() || undefined }),
   });
 }
 

@@ -7,6 +7,7 @@ import {
   Hash,
   ShoppingBag,
   Percent,
+  FileText,
 } from "lucide-react";
 import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables } from "../services/tableApi";
@@ -350,6 +351,16 @@ export default function OrderDetailsDrawer({
               )}
 
             </div>
+
+            {order.description && String(order.description).trim() && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-start gap-2 text-amber-900">
+                <FileText size={16} className="shrink-0 text-amber-700 mt-0.5" />
+                <div>
+                  <span className="font-bold text-amber-800">Kitchen Note: </span>
+                  <span className="font-medium text-amber-900">{order.description}</span>
+                </div>
+              </div>
+            )}
 
           </div>
 

@@ -70,11 +70,12 @@ export async function updateOrderItemPrices(orderId: string, updates: { id: stri
 
 export async function addOrderItems(
   orderId: string,
-  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>
+  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>,
+  description?: string
 ) {
   return await requestAdminJson(`${BASE}/${orderId}/items`, {
     method: "POST",
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ items, description: description?.trim() || undefined }),
   });
 }
 

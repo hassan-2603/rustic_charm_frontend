@@ -4,7 +4,12 @@ import { saveAs } from "file-saver";
 function parseDate(value: any): Date | null {
   if (!value) return null;
   if (typeof value?.toDate === "function") return value.toDate();
-  const d = new Date(value);
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  let s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    s = s.replace(" ", "T");
+  }
+  const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
 

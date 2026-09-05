@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Search, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Minus, Plus, Search, Trash2, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { getMenuItems } from "../../services/customerApi";
 import { listenTables, createCaptainOrder } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
 import { getLocalizedField, getMenuPriceOptions } from "../../types";
+import OrderDescriptionModal from "../../components/OrderDescriptionModal";
 
 type SelectedItem = { item: any; quantity: number };
 
@@ -135,29 +136,56 @@ export default function OrderByCaptain() {
                 <span>Total</span>
                 <span>₹{total}</span>
               </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <button onClick={() => setShowDescriptionBox(!showDescriptionBox)} className="w-full text-olive border-2 border-olive rounded-xl py-3 font-semibold hover:bg-olive/10 hidden lg:block">
-                  {showDescriptionBox ? "Hide Description" : "Add Description"}
+
+              {description.trim() && (
+                <div className="mt-3 p-2.5 bg-olive/10 border border-olive/20 rounded-xl text-xs flex items-center justify-between text-olive">
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <FileText size={14} className="shrink-0" />
+                    <span className="truncate font-medium">Note: {description}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDescription("")}
+                    className="text-red-500 hover:text-red-700 font-bold ml-2 shrink-0"
+                    title="Remove note"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDescriptionBox(true)}
+                  className={`w-full py-3 px-3 rounded-xl font-semibold border-2 transition flex items-center justify-center gap-1.5 text-sm ${
+                    description.trim()
+                      ? "border-olive bg-olive/10 text-olive"
+                      : "border-gray-300 text-gray-700 hover:border-olive hover:text-olive hover:bg-olive/5"
+                  }`}
+                >
+                  <FileText size={16} />
+                  {description.trim() ? "Edit Note (Saved)" : "Add Description"}
                 </button>
-                <button onClick={placeOrder} disabled={placing} className="w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60 col-span-2 lg:col-span-1">
+                <button
+                  onClick={placeOrder}
+                  disabled={placing}
+                  className="w-full bg-olive text-white rounded-xl py-3 font-semibold disabled:opacity-60 text-sm hover:bg-olive/90 transition shadow-sm"
+                >
                   {placing ? "Printing..." : "Order & Print KOT"}
                 </button>
               </div>
-              {showDescriptionBox && (
-                <div className="mt-3 hidden lg:block">
-                  <textarea
-                    className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-olive"
-                    rows={3}
-                    placeholder="Add order description (prints on KOT)..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
           </>
         )}
       </section>
     </div>
+
+    <OrderDescriptionModal
+      isOpen={showDescriptionBox}
+      initialDescription={description}
+      onSave={(savedDesc) => setDescription(savedDesc)}
+      onClose={() => setShowDescriptionBox(false)}
+    />
   </div>;
 }

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, X, Plus, Minus, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { getMenuItems } from "../services/menuService";
 import { addOrderItems } from "../services/orderApi";
 import { printKOT } from "../services/printerService";
 import { getLocalizedField, getMenuPriceOptions } from "../../types";
+import OrderDescriptionModal from "../../components/OrderDescriptionModal";
 
 type Props = {
   open: boolean;
@@ -19,11 +20,14 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [adding, setAdding] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [description, setDescription] = useState(order?.description || "");
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setDescription(order?.description || "");
     getMenuItems().then(setMenuItems).catch(console.error);
-  }, [open]);
+  }, [open, order]);
 
   useEffect(() => {
     if (!open) {
@@ -70,7 +74,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         quantity,
         price: getItemPrice(item),
       }));
-      const updated = await addOrderItems(order.id, itemsPayload);
+      const updated = await addOrderItems(order.id, itemsPayload, description);
       await printKOT(order.id);
       onItemAdded(updated);
       setSelected([]);
@@ -145,6 +149,23 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         </div>
 
         <div className="p-5 border-t bg-white shrink-0">
+          {description.trim() && (
+            <div className="mb-3 p-2.5 bg-olive/10 border border-olive/20 rounded-xl text-xs flex items-center justify-between text-olive">
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <FileText size={14} className="shrink-0" />
+                <span className="truncate font-medium">Note: {description}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDescription("")}
+                className="text-red-500 hover:text-red-700 font-bold ml-2 shrink-0"
+                title="Remove note"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           <div className="sm:hidden flex justify-between items-center mb-4">
             <span className="font-bold text-gray-700">{selected.length} Items Selected</span>
             <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
@@ -163,14 +184,26 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                 <span className="font-bold text-lg text-gray-900">₹{total}</span>
               </div>
 
-              <div className="flex gap-3">
-                <button onClick={onClose} className="border px-5 py-2.5 rounded-xl font-semibold hover:bg-gray-50 flex-1 sm:flex-none">
+              <div className="flex flex-wrap sm:flex-nowrap gap-2.5 sm:gap-3 items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowDescriptionModal(true)}
+                  className={`border-2 px-4 py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-1.5 text-sm flex-1 sm:flex-none ${
+                    description.trim()
+                      ? "border-olive bg-olive/10 text-olive"
+                      : "border-gray-300 text-gray-700 hover:border-olive hover:text-olive hover:bg-olive/5"
+                  }`}
+                >
+                  <FileText size={16} />
+                  {description.trim() ? "Edit Note (Saved)" : "Add Description"}
+                </button>
+                <button onClick={onClose} className="border px-4 py-2.5 rounded-xl font-semibold hover:bg-gray-50 text-sm flex-1 sm:flex-none">
                   Cancel
                 </button>
                 <button
                   onClick={handleAdd}
                   disabled={adding || selected.length === 0}
-                  className="bg-olive hover:bg-olive/90 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60 flex-1 sm:flex-none"
+                  className="bg-olive hover:bg-olive/90 text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-60 text-sm flex-1 sm:flex-none shadow-sm transition"
                 >
                   {adding ? "Printing..." : "Order & Print KOT"}
                 </button>
@@ -180,6 +213,13 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         </div>
 
       </div>
+
+      <OrderDescriptionModal
+        isOpen={showDescriptionModal}
+        initialDescription={description}
+        onSave={(savedDesc) => setDescription(savedDesc)}
+        onClose={() => setShowDescriptionModal(false)}
+      />
     </div>
   );
 }

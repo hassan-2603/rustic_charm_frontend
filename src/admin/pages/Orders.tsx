@@ -8,9 +8,29 @@ import EmptyOrders from "../components/EmptyOrders";
 
 import { listenOrders, deleteAllOrders } from "../services/orderService";
 
+function parseOrderDate(value: any): Date | null {
+  if (!value) return null;
+  if (typeof value?.toDate === "function") return value.toDate();
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  let s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    s = s.replace(" ", "T");
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isEligibleForReport(order: any): boolean {
+  if (!order) return false;
+  const status = String(order.status || "").toLowerCase();
+  // Exclude only rejected orders; include Completed, Payment Done, Accepted, Served, etc.
+  if (status === "rejected") return false;
+  return true;
+}
+
 /**
- * Derives the active 7AM -> 1AM shift based on the current time and returns orders 
- * that are completed/paid within that window.
+ * Derives the active shift window based on the current time and returns orders 
+ * within that window.
  */
 function getPeriodOrders(orders: any[], daysAgo: number) {
   const now = new Date();
@@ -19,19 +39,19 @@ function getPeriodOrders(orders: any[], daysAgo: number) {
     shiftEnd.setDate(shiftEnd.getDate() - 1);
   }
   shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(1, 0, 0, 0);
+  shiftEnd.setHours(4, 0, 0, 0);
 
   const shiftStart = new Date(shiftEnd);
   shiftStart.setDate(shiftStart.getDate() - daysAgo);
-  shiftStart.setHours(7, 0, 0, 0);
+  shiftStart.setHours(6, 0, 0, 0);
 
   return orders.filter((order) => {
-    const created = new Date(order.createdAt);
+    const created = parseOrderDate(order.createdAt);
+    if (!created) return false;
     return (
       created >= shiftStart &&
       created <= shiftEnd &&
-      order.paymentMethod &&
-      order.status === "Completed"
+      isEligibleForReport(order)
     );
   });
 }
@@ -51,19 +71,19 @@ function getMonthlyOrders(orders: any[]) {
     bizDate.setDate(bizDate.getDate() - 1);
   }
 
-  const shiftStart = new Date(bizDate.getFullYear(), bizDate.getMonth(), 1, 7, 0, 0, 0);
+  const shiftStart = new Date(bizDate.getFullYear(), bizDate.getMonth(), 1, 6, 0, 0, 0);
   
   const shiftEnd = new Date(bizDate);
   shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(1, 0, 0, 0);
+  shiftEnd.setHours(4, 0, 0, 0);
 
   return orders.filter((order) => {
-    const created = new Date(order.createdAt);
+    const created = parseOrderDate(order.createdAt);
+    if (!created) return false;
     return (
       created >= shiftStart &&
       created <= shiftEnd &&
-      order.paymentMethod &&
-      order.status === "Completed"
+      isEligibleForReport(order)
     );
   });
 }
@@ -80,44 +100,54 @@ export default function Orders() {
     return () => unsubscribe();
   }, []);
 
-  // Automatic 1:00 AM download logic
+  // Automatic download logic (Daily, 15-day, Monthly)
   useEffect(() => {
+    if (!orders || orders.length === 0) return;
+
     const checkAndDownload = () => {
       const now = new Date();
-      if (now.getHours() === 1 && now.getMinutes() === 0) {
-        const todayStr = now.toLocaleDateString();
-        
-        // Daily Check
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const currentHour = now.getHours();
+      const dayOfMonth = now.getDate();
+
+      // Daily Check (Triggered after 1:00 AM for the previous day's shift)
+      if (currentHour >= 1) {
         const lastAutoDownload = localStorage.getItem("lastAutoDownloadDate_daily");
         if (lastAutoDownload !== todayStr) {
           const shiftOrders = getDailyOrders(orders);
-          if (shiftOrders.length > 0) exportOrdersExcel(shiftOrders, true, "Daily");
-          localStorage.setItem("lastAutoDownloadDate_daily", todayStr);
+          if (shiftOrders.length > 0) {
+            exportOrdersExcel(shiftOrders, true, "Daily");
+            localStorage.setItem("lastAutoDownloadDate_daily", todayStr);
+          }
         }
+      }
 
-        // 15-day check (Triggered every 1st and 16th of the month)
-        const dayOfMonth = now.getDate();
-        if (dayOfMonth === 1 || dayOfMonth === 16) {
-          const lastAuto15 = localStorage.getItem("lastAutoDownloadDate_15day");
-          if (lastAuto15 !== todayStr) {
-            const shiftOrders = get15DayOrders(orders);
-            if (shiftOrders.length > 0) exportOrdersExcel(shiftOrders, true, "15Days");
+      // 15-day check (Triggered every 1st and 16th of the month)
+      if ((dayOfMonth === 1 || dayOfMonth === 16) && currentHour >= 1) {
+        const lastAuto15 = localStorage.getItem("lastAutoDownloadDate_15day");
+        if (lastAuto15 !== todayStr) {
+          const shiftOrders = get15DayOrders(orders);
+          if (shiftOrders.length > 0) {
+            exportOrdersExcel(shiftOrders, true, "15Days");
             localStorage.setItem("lastAutoDownloadDate_15day", todayStr);
           }
         }
+      }
 
-        // Monthly check (Triggered every 1st of the month)
-        if (dayOfMonth === 1) {
-          const lastAutoMonth = localStorage.getItem("lastAutoDownloadDate_monthly");
-          if (lastAutoMonth !== todayStr) {
-            const shiftOrders = getMonthlyOrders(orders);
-            if (shiftOrders.length > 0) exportOrdersExcel(shiftOrders, true, "Monthly");
+      // Monthly check (Triggered on the 1st of every month)
+      if (dayOfMonth === 1 && currentHour >= 1) {
+        const lastAutoMonth = localStorage.getItem("lastAutoDownloadDate_monthly");
+        if (lastAutoMonth !== todayStr) {
+          const shiftOrders = getMonthlyOrders(orders);
+          if (shiftOrders.length > 0) {
+            exportOrdersExcel(shiftOrders, true, "Monthly");
             localStorage.setItem("lastAutoDownloadDate_monthly", todayStr);
           }
         }
       }
     };
 
+    checkAndDownload();
     const interval = setInterval(checkAndDownload, 60000); // check every minute
     return () => clearInterval(interval);
   }, [orders]);

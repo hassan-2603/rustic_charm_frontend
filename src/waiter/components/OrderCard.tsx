@@ -1,4 +1,4 @@
-import { Percent } from "lucide-react";
+import { Percent, FileText } from "lucide-react";
 
 export type PrintButtonState = {
   /** true only while the job is genuinely in flight (PENDING/PROCESSING) */
@@ -150,6 +150,16 @@ export default function OrderCard({
         ))}
 
       </div>
+
+      {order.description && String(order.description).trim() && (
+        <div className="mt-4 p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs flex items-start gap-2 text-amber-900">
+          <FileText size={15} className="shrink-0 text-amber-700 mt-0.5" />
+          <div>
+            <span className="font-bold text-amber-800">Kitchen Note: </span>
+            <span className="font-medium text-amber-900">{order.description}</span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
 
