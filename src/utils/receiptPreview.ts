@@ -12,6 +12,66 @@ interface PreviewOptions {
   splitLabel?: string;
 }
 
+function wrapText(text: string, width: number): string[] {
+  const words = String(text).split(/\s+/).flatMap((word) => {
+    if (word.length <= width) return [word];
+    const chunks = [];
+    for (let index = 0; index < word.length; index += width) {
+      chunks.push(word.slice(index, index + width));
+    }
+    return chunks;
+  });
+  const result: string[] = [];
+  let line = "";
+  for (const word of words) {
+    if (!word) continue;
+    if ((line ? line + " " + word : word).length <= width) {
+      line = line ? line + " " + word : word;
+    } else {
+      if (line) result.push(line);
+      line = word;
+    }
+  }
+  if (line) result.push(line);
+  return result;
+}
+
+function resolveSection(item: any, config: Record<string, string> = {}): string {
+  const catId = item.categoryId || item.category_id || "";
+  const catName = String(item.category || item.category_name || "").trim().toLowerCase();
+
+  if (catId && config[catId]) return config[catId];
+  if (catName) {
+    for (const [key, section] of Object.entries(config)) {
+      if (key.toLowerCase() === catName) return section;
+    }
+  }
+  if (
+    catName.includes("beer") ||
+    catName.includes("wine") ||
+    catName.includes("whisky") ||
+    catName.includes("vodka") ||
+    catName.includes("cocktail") ||
+    catName.includes("mocktail") ||
+    catName.includes("beverage") ||
+    catName.includes("bar") ||
+    catName.includes("drink")
+  ) {
+    return "Bar & Beverages";
+  }
+  if (
+    catName.includes("tandoor") ||
+    catName.includes("roti") ||
+    catName.includes("naan") ||
+    catName.includes("bread") ||
+    catName.includes("paratha") ||
+    catName.includes("kulcha")
+  ) {
+    return "Indian Tandoor";
+  }
+  return "Food";
+}
+
 export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options?: PreviewOptions): string {
   const lines: string[] = [];
   lines.push("RUSTIC CHARM");
@@ -25,6 +85,11 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
 
   if (type === "KOT") {
     lines.push("KITCHEN ORDER TICKET");
+    if (order.addedItems && order.addedItems.length > 0) {
+      lines.push("*** RUNNING KOT / ADDED ITEMS ***");
+    } else if (order.removedItems && order.removedItems.length > 0) {
+      lines.push("*** CANCELLED / REMOVED ITEMS ***");
+    }
     lines.push(`KOT No: ${order.orderNumber ?? "--"}`);
     lines.push(`Table: ${order.tableLabel || order.tableReference || order.tableNumber || "--"}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
@@ -32,18 +97,19 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (order.addedItems && order.addedItems.length > 0) {
       lines.push("--- ADDED ---");
       for (const item of order.addedItems) {
-        lines.push(`${item.quantity}  ${item.name}`);
+        const qty = String(item.quantity || 1).padStart(3, " ");
+        lines.push(`${qty}  ${item.name}`);
       }
-    }
-    if (order.removedItems && order.removedItems.length > 0) {
-      lines.push("--- REMOVED ---");
+    } else if (order.removedItems && order.removedItems.length > 0) {
+      lines.push("--- CANCELLED ---");
       for (const item of order.removedItems) {
-        lines.push(`${item.quantity}  ${item.name}`);
+        const qty = String(item.quantity || 1);
+        lines.push(`CANCEL: ${qty.padStart(2, " ")}  ${item.name}`);
       }
-    }
-    if ((!order.addedItems || order.addedItems.length === 0) && (!order.removedItems || order.removedItems.length === 0)) {
+    } else {
       for (const item of order.items || []) {
-        lines.push(`${item.quantity}  ${item.name}`);
+        const qty = String(item.quantity || 1).padStart(3, " ");
+        lines.push(`${qty}  ${item.name}`);
       }
     }
     if (order.description) {
@@ -59,42 +125,74 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push("------------------------------------------");
 
-    // NOTE: If billSections is needed, it would be passed in options, but for preview we can rely on standard splitting.
-    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
+    lines.push("Particulars              Qty   Rate Amount");
+    lines.push("------------------------------------------");
+
+    const formatAmt = (val: any) => {
+      const num = Number(val || 0);
+      const s = num % 1 === 0 ? String(num) : num.toFixed(2);
+      return s.length > 6 ? String(Math.round(num)) : s;
+    };
 
     const formatRightAlignedTotal = (label: string, amount: number, prefix: string = "Rs ") => {
-      const amtStr = String(amount).padStart(6, " ");
-      const rightSide = `${prefix}${amtStr}`;
-      const leftSide = label.padEnd(42 - rightSide.length, " ");
+      const num = Number(amount || 0);
+      const amtStr = (num % 1 === 0 ? String(num) : num.toFixed(2)).slice(0, 7);
+      const rightSide = `${prefix}${amtStr}`.padStart(12, " ");
+      const leftSide = label.slice(0, 30).padEnd(30, " ");
       return `${leftSide}${rightSide}`;
     };
 
-    if (foodItems.length > 0) {
-      lines.push("--- FOOD ---");
-      for (const item of foodItems) {
-        const namePad = item.name.length > 22 ? item.name.substring(0, 22) : item.name.padEnd(22, " ");
-        const qtyPad = String(item.quantity).padStart(3, " ");
-        const amtPad = String(item.price * item.quantity).padStart(6, " ");
-        lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
+    const printItemRows = (items: any[]) => {
+      for (const item of items || []) {
+        const name = String(item.name || "");
+        const qtyVal = Number(item.quantity || 1);
+        const rateVal = Number(item.price || 0);
+        const amtVal = Number(item.amount ?? (rateVal * qtyVal));
+
+        const quantity = String(qtyVal).padStart(3, " ");
+        const rate = formatAmt(rateVal).padStart(6, " ");
+        const amt = formatAmt(amtVal).padStart(6, " ");
+
+        const wrapped = wrapText(name, 24);
+        for (let i = 0; i < wrapped.length; i++) {
+          const lineName = wrapped[i].padEnd(24, " ");
+          if (i === 0) {
+            lines.push(`${lineName} ${quantity} ${rate} ${amt}`);
+          } else {
+            lines.push(lineName);
+          }
+        }
       }
+    };
+
+    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
+
+    if (foodItems.length > 0) {
+      lines.push("FOOD");
+      printItemRows(foodItems);
       lines.push(formatRightAlignedTotal("Food Subtotal:", foodTotal));
-      lines.push("");
+      if (order.foodDiscountAmount > 0) {
+        lines.push(formatRightAlignedTotal(`Discount (${order.foodDiscountPercent}%):`, order.foodDiscountAmount, "-Rs "));
+      }
+      lines.push("------------------------------------------");
     }
 
     if (alcoholItems.length > 0) {
-      lines.push("--- LIQUOR ---");
-      for (const item of alcoholItems) {
-        const namePad = item.name.length > 22 ? item.name.substring(0, 22) : item.name.padEnd(22, " ");
-        const qtyPad = String(item.quantity).padStart(3, " ");
-        const amtPad = String(item.price * item.quantity).padStart(6, " ");
-        lines.push(`${namePad} ${qtyPad}   Rs ${amtPad}`);
-      }
+      lines.push("LIQUOR");
+      printItemRows(alcoholItems);
       lines.push(formatRightAlignedTotal("Liquor Subtotal:", alcoholTotal));
-      lines.push("");
+      if (order.alcoholDiscountAmount > 0) {
+        lines.push(formatRightAlignedTotal(`Discount (${order.alcoholDiscountPercent}%):`, order.alcoholDiscountAmount, "-Rs "));
+      }
+      lines.push("------------------------------------------");
     }
 
-    lines.push("------------------------------------------");
-    if (order.discountAmount > 0) {
+    if (!foodItems.length && !alcoholItems.length && order.items?.length) {
+      printItemRows(order.items);
+      lines.push("------------------------------------------");
+    }
+
+    if (order.discountMode !== "category" && order.discountAmount > 0) {
       lines.push(formatRightAlignedTotal("DISCOUNT:", order.discountAmount, "-Rs "));
     }
     lines.push(formatRightAlignedTotal("GRAND TOTAL:", order.finalTotal ?? order.total));
@@ -116,18 +214,26 @@ export function buildPreviewTexts(order: any, type: "BILL" | "KOT", options?: Pr
     if (order.lastPrintedItems) {
       isDiffPrint = true;
       const currentItemMap: Record<string, any> = {};
-      for (const item of order.items || []) currentItemMap[item.id] = item;
+      for (const item of order.items || []) {
+        const key = item.id || `${item.menuItemId || item.menu_item_id || ""}_${item.name}`;
+        currentItemMap[key] = item;
+      }
       const lastItemMap: Record<string, any> = {};
-      for (const item of order.lastPrintedItems) lastItemMap[item.id] = item;
+      for (const item of order.lastPrintedItems) {
+        const key = item.id || `${item.menuItemId || item.menu_item_id || ""}_${item.name}`;
+        lastItemMap[key] = item;
+      }
 
       for (const item of order.items || []) {
-        const prev = lastItemMap[item.id];
+        const key = item.id || `${item.menuItemId || item.menu_item_id || ""}_${item.name}`;
+        const prev = lastItemMap[key];
         if (!prev) addedItemsOverall.push({ ...item });
         else if (item.quantity > prev.quantity) addedItemsOverall.push({ ...item, quantity: item.quantity - prev.quantity });
       }
 
       for (const item of order.lastPrintedItems) {
-        const cur = currentItemMap[item.id];
+        const key = item.id || `${item.menuItemId || item.menu_item_id || ""}_${item.name}`;
+        const cur = currentItemMap[key];
         if (!cur) removedItemsOverall.push({ ...item });
         else if (cur.quantity < item.quantity) removedItemsOverall.push({ ...item, quantity: item.quantity - cur.quantity });
       }
@@ -142,8 +248,7 @@ export function buildPreviewTexts(order: any, type: "BILL" | "KOT", options?: Pr
     const sectionRemovedItems: Record<string, any[]> = {};
 
     const processItemIntoSection = (item: any, mapToUpdate: Record<string, any[]>) => {
-      const catId = item.categoryId || item.category_id;
-      const sectionName = (catId && config[catId]) ? config[catId] : "Unassigned";
+      const sectionName = resolveSection(item, config);
       if (!mapToUpdate[sectionName]) mapToUpdate[sectionName] = [];
       mapToUpdate[sectionName].push(item);
     };

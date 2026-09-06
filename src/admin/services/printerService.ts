@@ -65,8 +65,8 @@ export async function printBill(orderId: string): Promise<PrintOutcome> {
   return printApi.printAndWait(orderId, "BILL");
 }
 
-export async function printKOT(orderId: string): Promise<PrintOutcome> {
-  return printApi.printAndWait(orderId, "KOT");
+export async function printKOT(orderId: string, extra?: Record<string, unknown>): Promise<PrintOutcome> {
+  return printApi.printAndWait(orderId, "KOT", extra || {});
 }
 
 export async function retryPrint(jobId: string, type: "BILL" | "KOT"): Promise<PrintOutcome> {

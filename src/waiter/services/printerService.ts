@@ -22,8 +22,8 @@ export async function printBill(orderId: string, waiterId?: string): Promise<Pri
   return printApi.printAndWait(orderId, "BILL", waiterId ? { waiterId } : {});
 }
 
-export async function printKOT(orderId: string, waiterId?: string): Promise<PrintOutcome> {
-  return printApi.printAndWait(orderId, "KOT", waiterId ? { waiterId } : {});
+export async function printKOT(orderId: string, waiterId?: string, extra?: Record<string, unknown>): Promise<PrintOutcome> {
+  return printApi.printAndWait(orderId, "KOT", { ...(waiterId ? { waiterId } : {}), ...(extra || {}) });
 }
 
 export async function retryPrint(jobId: string, type: "BILL" | "KOT"): Promise<PrintOutcome> {

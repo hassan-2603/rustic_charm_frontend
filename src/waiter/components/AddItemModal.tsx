@@ -89,11 +89,13 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
           name,
           quantity,
           price: selectedPriceOption?.amount ?? item.price ?? 0,
+          categoryId: item.categoryId || (item as any).category_id || "",
+          category: (item as any).category || (item as any).category_name || "",
         };
       });
       const updated = await addOrderItems(order.id, itemsPayload, description);
       const waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
-      await printKOT(order.id, waiter?.id);
+      await printKOT(order.id, waiter?.id, { action: "ADD", items: itemsPayload, description });
       onItemAdded(updated);
       setSelected([]);
       onClose();

@@ -46,7 +46,16 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
   async function handleDone() {
     const removals = Object.entries(removedQty)
       .filter(([_, qty]) => qty > 0)
-      .map(([id, quantity]) => ({ id, quantity }));
+      .map(([id, quantity]) => {
+        const item = items.find((i) => i.id === id);
+        return {
+          id,
+          name: item?.name || "",
+          quantity,
+          categoryId: item?.categoryId || (item as any)?.category_id || "",
+          category: (item as any)?.category || (item as any)?.category_name || "",
+        };
+      });
 
     if (removals.length === 0) {
       onClose();
@@ -65,7 +74,7 @@ export default function RemoveItemModal({ open, order, onClose, onItemsRemoved }
     try {
       const updated = await removeOrderItems(order.id, removals);
       const waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
-      await printKOT(order.id, waiter?.id);
+      await printKOT(order.id, waiter?.id, { action: "REMOVE", items: removals });
 
       onItemsRemoved(updated);
       setRemovedQty({});

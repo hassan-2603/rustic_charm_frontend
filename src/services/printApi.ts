@@ -77,20 +77,12 @@ export function createPrintApi(request: Requester) {
       return { job: null, ok: true, message: `No items to print for ${type === "BILL" ? "Bill" : "KOT"}` };
     }
 
-    let finalJob = jobs[0];
-    let allOk = true;
+    // Wait for all section jobs concurrently so multi-section printing is fast
+    const finalJobs = await Promise.all(jobs.map((j) => waitForJob(j.id)));
+    const failedJob = finalJobs.find((fj) => fj.status !== "PRINTED");
+    const representativeJob = failedJob || finalJobs[finalJobs.length - 1];
 
-    for (const j of jobs) {
-      const fj = await waitForJob(j.id);
-      if (fj.status !== "PRINTED") {
-        allOk = false;
-        finalJob = fj; // capture the failure
-        break; // break early on first failure
-      }
-      finalJob = fj;
-    }
-
-    return interpretJob(finalJob, type);
+    return interpretJob(representativeJob, type);
   }
 
   async function retryAndWait(jobId: string, type: "BILL" | "KOT"): Promise<PrintOutcome> {
