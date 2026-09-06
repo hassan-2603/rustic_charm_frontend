@@ -609,7 +609,7 @@ export default function CustomerApp() {
     }
 
     return () => cleanupSessionListener();
-  }, [tables]);
+  }, [tables.length > 0]);
 
   const t = TRANSLATIONS[language];
 

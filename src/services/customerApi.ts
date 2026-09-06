@@ -339,7 +339,7 @@ export async function requestBill(orderId) {
 export function listenToSessionOrders(
   sessionId,
   callback,
-  pollIntervalMs = 3000
+  pollIntervalMs = 15000
 ) {
   let active = true;
   let timer;
