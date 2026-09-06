@@ -40,35 +40,16 @@ function resolveSection(item: any, config: Record<string, string> = {}): string 
   const catId = item.categoryId || item.category_id || "";
   const catName = String(item.category || item.category_name || "").trim().toLowerCase();
 
+  // 1. Direct configuration by category ID
   if (catId && config[catId]) return config[catId];
+
+  // 2. Direct configuration by category Name
   if (catName) {
     for (const [key, section] of Object.entries(config)) {
       if (key.toLowerCase() === catName) return section;
     }
   }
-  if (
-    catName.includes("beer") ||
-    catName.includes("wine") ||
-    catName.includes("whisky") ||
-    catName.includes("vodka") ||
-    catName.includes("cocktail") ||
-    catName.includes("mocktail") ||
-    catName.includes("beverage") ||
-    catName.includes("bar") ||
-    catName.includes("drink")
-  ) {
-    return "Bar & Beverages";
-  }
-  if (
-    catName.includes("tandoor") ||
-    catName.includes("roti") ||
-    catName.includes("naan") ||
-    catName.includes("bread") ||
-    catName.includes("paratha") ||
-    catName.includes("kulcha")
-  ) {
-    return "Indian Tandoor";
-  }
+
   return "Food";
 }
 
