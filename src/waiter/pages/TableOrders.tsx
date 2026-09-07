@@ -65,8 +65,8 @@ export default function TableOrders() {
         setPaymentOrder(order);
     }
 
-    async function handleSavePayment(order: any, method: string) {
-        await savePaymentAndEndSession(order, method);
+    async function handleSavePayment(order: any, method: string, splits?: Record<string, number>, tip?: number) {
+        await savePaymentAndEndSession(order, method, splits, tip);
         setPaymentOrder(null);
     }
 

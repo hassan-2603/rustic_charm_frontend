@@ -8,6 +8,8 @@ import {
   ShoppingBag,
   Percent,
   FileText,
+  CheckCircle2,
+  Coins,
 } from "lucide-react";
 import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables, freeTable } from "../services/tableApi";
@@ -41,7 +43,10 @@ export default function OrderDetailsDrawer({
   const [tables, setTables] = useState<any[]>([]);
   const [selectedTableId, setSelectedTableId] = useState("");
   const [savingTable, setSavingTable] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+  const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>(["Cash"]);
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({ Cash: "" });
+  const [showTip, setShowTip] = useState(false);
+  const [tipAmount, setTipAmount] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
   const [billState, setBillState] = useState<{ printing: boolean; result: "success" | "failed" | null; message?: string }>({ printing: false, result: null });
   const [kotState, setKotState] = useState<{ printing: boolean; result: "success" | "failed" | null; message?: string }>({ printing: false, result: null });
@@ -60,7 +65,34 @@ export default function OrderDetailsDrawer({
 
   useEffect(() => {
     if (order) {
-      setSelectedPaymentMethod(order.paymentMethod || "");
+      const splits = order.paymentSplits
+        ? typeof order.paymentSplits === "string"
+          ? JSON.parse(order.paymentSplits)
+          : order.paymentSplits
+        : null;
+
+      if (splits && Object.keys(splits).length > 0) {
+        const active = Object.keys(splits).filter((k) => Number(splits[k]) > 0);
+        setSelectedPaymentMethods(active.length > 0 ? active : [order.paymentMethod || "Cash"]);
+        const loaded: Record<string, string> = {};
+        for (const k of active) {
+          loaded[k] = String(splits[k]);
+        }
+        setPaymentAmounts(loaded);
+      } else {
+        const initial = order.paymentMethod || "Cash";
+        setSelectedPaymentMethods([initial]);
+        setPaymentAmounts({ [initial]: "" });
+      }
+
+      const initialTip = Number(order.tipAmount || order.tip || 0);
+      if (initialTip > 0) {
+        setShowTip(true);
+        setTipAmount(String(initialTip));
+      } else {
+        setShowTip(false);
+        setTipAmount("");
+      }
     }
   }, [order]);
 
@@ -76,6 +108,54 @@ export default function OrderDetailsDrawer({
   }, [order, tables]);
 
   if (!open || !order) return null;
+
+  const totalPayable = Number(order.finalTotal ?? order.total) || 0;
+
+  function togglePaymentMethod(method: string) {
+    if (selectedPaymentMethods.includes(method)) {
+      if (selectedPaymentMethods.length === 1) {
+        setSelectedPaymentMethods([]);
+        setPaymentAmounts((prev) => {
+          const next = { ...prev };
+          delete next[method];
+          return next;
+        });
+      } else {
+        setSelectedPaymentMethods((prev) => prev.filter((m) => m !== method));
+        setPaymentAmounts((prev) => {
+          const next = { ...prev };
+          delete next[method];
+          return next;
+        });
+      }
+    } else {
+      setSelectedPaymentMethods((prev) => [...prev, method]);
+      setPaymentAmounts((prev) => ({ ...prev, [method]: prev[method] || "" }));
+    }
+  }
+
+  function handlePaymentAmountChange(method: string, val: string) {
+    if (val !== "" && !/^\d*\.?\d*$/.test(val)) return;
+    setPaymentAmounts((prev) => ({ ...prev, [method]: val }));
+  }
+
+  const enteredPaymentSum = selectedPaymentMethods.reduce((acc, m) => {
+    const val = parseFloat(paymentAmounts[m] || "0");
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
+
+  const remainingPayable = Math.round((totalPayable - enteredPaymentSum) * 100) / 100;
+
+  function handleFillPaymentRemaining(method: string) {
+    const otherSum = selectedPaymentMethods
+      .filter((m) => m !== method)
+      .reduce((acc, m) => acc + (parseFloat(paymentAmounts[m] || "0") || 0), 0);
+    const toFill = Math.max(0, Math.round((totalPayable - otherSum) * 100) / 100);
+    setPaymentAmounts((prev) => ({
+      ...prev,
+      [method]: String(toFill),
+    }));
+  }
 
   async function handleSaveTable() {
     if (!selectedTable || selectedTable.id === order.tableId) return;
@@ -96,20 +176,77 @@ export default function OrderDetailsDrawer({
   }
 
   async function handleSavePayment() {
-    if (!selectedPaymentMethod) {
-      alert("Please select a payment method.");
+    if (selectedPaymentMethods.length === 0) {
+      alert("Please select at least one payment method.");
       return;
     }
+
+    const finalSplits: Record<string, number> = {};
+    let finalMethod = "";
+
+    if (selectedPaymentMethods.length === 1) {
+      const single = selectedPaymentMethods[0];
+      const entered = parseFloat(paymentAmounts[single] || "");
+      if (isNaN(entered) || entered <= 0) {
+        finalSplits[single] = totalPayable;
+      } else {
+        finalSplits[single] = entered;
+      }
+      finalMethod = single;
+    } else {
+      const emptyMethods = selectedPaymentMethods.filter(
+        (m) => !paymentAmounts[m] || parseFloat(paymentAmounts[m]) <= 0
+      );
+
+      const workingAmounts = { ...paymentAmounts };
+
+      if (emptyMethods.length === 1) {
+        const sumFilled = selectedPaymentMethods
+          .filter((m) => m !== emptyMethods[0])
+          .reduce((acc, m) => acc + (parseFloat(paymentAmounts[m] || "0") || 0), 0);
+        if (sumFilled < totalPayable) {
+          workingAmounts[emptyMethods[0]] = String(
+            Math.round((totalPayable - sumFilled) * 100) / 100
+          );
+        }
+      }
+
+      let multiSum = 0;
+      for (const m of selectedPaymentMethods) {
+        const amt = parseFloat(workingAmounts[m] || "0") || 0;
+        finalSplits[m] = amt;
+        multiSum += amt;
+      }
+
+      multiSum = Math.round(multiSum * 100) / 100;
+      if (Math.abs(multiSum - totalPayable) > 0.01) {
+        alert(
+          `Total of entered amounts (₹${multiSum}) does not match the payable bill amount (₹${totalPayable}). Please adjust the amounts.`
+        );
+        return;
+      }
+
+      finalMethod = `Split (${selectedPaymentMethods
+        .map((m) => `${m}: ₹${finalSplits[m]}`)
+        .join(", ")})`;
+    }
+
+    const parsedTip = showTip ? parseFloat(tipAmount) || 0 : 0;
+
     setSavingPayment(true);
     try {
       await updateOrder(order.id, {
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: finalMethod,
+        paymentSplits: finalSplits,
+        tipAmount: parsedTip,
         paymentStatus: 'Paid',
         status: 'Completed',
         completedAt: new Date().toISOString()
       });
       order.status = 'Completed';
-      order.paymentMethod = selectedPaymentMethod;
+      order.paymentMethod = finalMethod;
+      order.paymentSplits = finalSplits;
+      order.tipAmount = parsedTip;
       order.paymentStatus = 'Paid';
 
       const targetTableId = order.tableId || tables.find((t: any) => t.tableKey === order.tableReference || t.id === order.tableReference)?.id;
@@ -660,36 +797,206 @@ export default function OrderDetailsDrawer({
 
           </div>
 
-          {/* Payment Method + Save (persists paymentMethod on the order) */}
+          {/* Payment Method + Save (persists paymentMethod, splits, and tip on the order) */}
           <div className="border rounded-2xl p-5 space-y-4">
 
-            <h3 className="font-semibold">
-              Payment Method
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">
+                Payment Method
+              </h3>
+              {selectedPaymentMethods.length > 1 && (
+                <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                  Split Payment Active
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              Select one or multiple options. Enter amounts for split payments. If a single option is selected without entering an amount, it will contain the full total.
+            </p>
 
-            <div className="grid grid-cols-2 gap-3">
-              {["Card", "Cash", "UPI", "Zomato"].map((method) => (
-                <button
-                  key={method}
-                  type="button"
-                  onClick={() => setSelectedPaymentMethod(method)}
-                  className={`py-3 rounded-xl font-semibold border transition ${selectedPaymentMethod === method
-                    ? "bg-olive text-white border-olive"
-                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+            <div className="space-y-2.5">
+              {["Cash", "Card", "UPI", "Zomato"].map((method) => {
+                const isSelected = selectedPaymentMethods.includes(method);
+                return (
+                  <div
+                    key={method}
+                    className={`rounded-xl border-2 transition-all p-3 ${
+                      isSelected
+                        ? "border-olive bg-olive/5 text-gray-900 ring-1 ring-olive/20"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
+                  >
+                    <div
+                      onClick={() => !savingPayment && togglePaymentMethod(method)}
+                      className="flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <span className="font-semibold text-sm">{method}</span>
+                      {isSelected ? (
+                        <CheckCircle2 size={18} className="text-olive" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                      )}
+                    </div>
+
+                    {/* Amount Input Box (Appears when clicked/selected) */}
+                    {isSelected && (
+                      <div className="mt-3 pt-3 border-t border-gray-200/70 flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">
+                            ₹
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={paymentAmounts[method] ?? ""}
+                            onChange={(e) => handlePaymentAmountChange(method, e.target.value)}
+                            placeholder={
+                              selectedPaymentMethods.length === 1
+                                ? `Default: ₹${totalPayable}`
+                                : "Enter amount"
+                            }
+                            disabled={savingPayment}
+                            className="w-full pl-7 pr-3 py-2 text-sm font-semibold bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-olive/40 focus:border-olive"
+                          />
+                        </div>
+
+                        {selectedPaymentMethods.length > 1 && remainingPayable > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleFillPaymentRemaining(method)}
+                            className="text-xs px-2.5 py-2 font-medium bg-white hover:bg-gray-100 text-gray-700 rounded-xl border border-gray-300 shrink-0 transition"
+                          >
+                            Fill ₹{remainingPayable}
+                          </button>
+                        )}
+                        {selectedPaymentMethods.length === 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPaymentAmounts({ [method]: String(totalPayable) })
+                            }
+                            className="text-xs px-2.5 py-2 font-medium bg-white hover:bg-gray-100 text-gray-700 rounded-xl border border-gray-300 shrink-0 transition"
+                          >
+                            Full ₹{totalPayable}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Split Balance Summary Indicator */}
+            {selectedPaymentMethods.length > 1 && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-center justify-between font-medium ${
+                  Math.abs(remainingPayable) < 0.01
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : remainingPayable > 0
+                    ? "bg-amber-50 border-amber-200 text-amber-800"
+                    : "bg-red-50 border-red-200 text-red-800"
+                }`}
+              >
+                <span>
+                  Entered: ₹{enteredPaymentSum.toLocaleString()} / ₹{totalPayable.toLocaleString()}
+                </span>
+                <span>
+                  {Math.abs(remainingPayable) < 0.01
+                    ? "✓ Exact Total Allocated"
+                    : remainingPayable > 0
+                    ? `₹${remainingPayable.toLocaleString()} remaining`
+                    : `₹${Math.abs(remainingPayable).toLocaleString()} over total`}
+                </span>
+              </div>
+            )}
+
+            {/* Tip Option */}
+            <div className="border border-gray-200 rounded-2xl p-3.5 bg-gray-50/70">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTip(!showTip);
+                    if (showTip) setTipAmount("");
+                  }}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 transition"
                 >
-                  {method}
+                  <div className={`p-1.5 rounded-lg ${showTip ? "bg-amber-100 text-amber-700" : "bg-gray-200 text-gray-600"}`}>
+                    <Coins size={16} />
+                  </div>
+                  <span>{showTip ? "Tip / Gratuity Added" : "+ Add Tip / Gratuity"}</span>
                 </button>
-              ))}
+
+                {showTip && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTip(false);
+                      setTipAmount("");
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              {showTip && (
+                <div className="mt-3 pt-3 border-t border-gray-200/80 space-y-2.5">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">
+                      ₹
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={tipAmount}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d*\.?\d*$/.test(val)) setTipAmount(val);
+                      }}
+                      placeholder="Enter tip amount"
+                      disabled={savingPayment}
+                      className="w-full pl-7 pr-3 py-2 text-sm font-semibold bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {[20, 50, 100, 200].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setTipAmount(String(chip))}
+                        className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition ${
+                          tipAmount === String(chip)
+                            ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        +₹{chip}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-gray-500">
+                    Tip is recorded separately and not added to the bill total.
+                  </p>
+                </div>
+              )}
             </div>
 
             <button
               type="button"
               onClick={handleSavePayment}
-              disabled={savingPayment}
-              className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-semibold disabled:opacity-60"
+              disabled={savingPayment || selectedPaymentMethods.length === 0}
+              className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl font-semibold disabled:opacity-60 transition"
             >
-              {savingPayment ? "Saving..." : "Save"}
+              {savingPayment
+                ? "Saving..."
+                : showTip && parseFloat(tipAmount) > 0
+                ? `Save Payment (₹${totalPayable.toLocaleString()} + Tip ₹${parseFloat(tipAmount).toLocaleString()})`
+                : `Save Payment (₹${totalPayable.toLocaleString()})`}
             </button>
 
           </div>

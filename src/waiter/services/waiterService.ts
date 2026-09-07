@@ -111,10 +111,15 @@ export async function freeTable(tableId: string) {
   });
 }
 
-export async function savePaymentAndEndSession(order: any, paymentMethod: string) {
+export async function savePaymentAndEndSession(
+  order: any,
+  paymentMethod: string,
+  paymentSplits?: Record<string, number>,
+  tipAmount?: number
+) {
   const updates: Promise<any>[] = [];
 
-  // Mark order as Completed with paymentMethod and completedAt
+  // Mark order as Completed with paymentMethod, paymentSplits, tipAmount and completedAt
   updates.push(
     requestAdminJson(`/orders/${order.id}`, {
       method: "PUT",
@@ -122,6 +127,8 @@ export async function savePaymentAndEndSession(order: any, paymentMethod: string
         status: "Completed",
         paymentStatus: "Paid",
         paymentMethod: paymentMethod,
+        paymentSplits: paymentSplits ? JSON.stringify(paymentSplits) : null,
+        tipAmount: Number(tipAmount || 0),
         completedAt: new Date().toISOString(),
       }),
     })

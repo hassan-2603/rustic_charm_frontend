@@ -9,7 +9,7 @@ export function listenOrders(callback: (orders: any[]) => void) {
 
   const load = async () => {
     try {
-      const data = await requestAdminJson(`${BASE}`);
+      const data = await requestAdminJson(`${BASE}?includeCompleted=true`);
       if (active) callback(data);
     } catch (err) {
       console.error("Error loading admin orders:", err);

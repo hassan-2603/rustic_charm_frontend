@@ -57,6 +57,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
         liquorMin: 99999999, liquorMax: 0,
         food: 0, liquor: 0,
         cash: 0, card: 0, online: 0,
+        tip: 0,
         grTotal: 0
       };
     }
@@ -105,10 +106,31 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       const finalTot = Number(order.finalTotal ?? order.total) || 0;
       g.grTotal += finalTot;
 
-      const pm = (order.paymentMethod || "").toUpperCase();
-      if (pm === "CASH") g.cash += finalTot;
-      else if (pm === "CARD") g.card += finalTot;
-      else g.online += finalTot;
+      // Handle split payments:
+      const splits = order.paymentSplits
+        ? (typeof order.paymentSplits === 'string' ? JSON.parse(order.paymentSplits) : order.paymentSplits)
+        : null;
+
+      if (splits && (splits.cash || splits.Cash || splits.card || splits.Card || splits.upi || splits.UPI || splits.zomato || splits.Zomato)) {
+        const cashAmt = Number(splits.cash ?? splits.Cash ?? 0) || 0;
+        const cardAmt = Number(splits.card ?? splits.Card ?? 0) || 0;
+        const upiAmt = Number(splits.upi ?? splits.UPI ?? 0) || 0;
+        const zomatoAmt = Number(splits.zomato ?? splits.Zomato ?? 0) || 0;
+        g.cash += cashAmt;
+        g.card += cardAmt;
+        g.online += (upiAmt + zomatoAmt);
+      } else {
+        const pm = (order.paymentMethod || "").toUpperCase();
+        if (pm.includes("CASH") && !pm.includes("UPI") && !pm.includes("CARD")) g.cash += finalTot;
+        else if (pm.includes("CARD") && !pm.includes("CASH") && !pm.includes("UPI")) g.card += finalTot;
+        else g.online += finalTot;
+      }
+
+      // Tip is recorded separately and NOT added to total
+      const tip = Number(order.tipAmount || order.tip || 0);
+      if (tip > 0) {
+        g.tip = (g.tip || 0) + tip;
+      }
     }
   });
 
@@ -127,7 +149,7 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     [`PRINT DATE: ${printDateStr}`],
     [],
     [],
-    ["DATE", "FOOD", "TOTAL", "LIQUOR", "TOTAL", "GR.TOTAL", "CASH", "CARD", "ONLINE"]
+    ["DATE", "FOOD", "TOTAL", "LIQUOR", "TOTAL", "GR.TOTAL", "CASH", "CARD", "ONLINE", null, null, null, null, "TIP"]
   ];
 
   let sumFood = 0, sumLiquor = 0, sumGrTotal = 0, sumCash = 0, sumCard = 0, sumOnline = 0;
@@ -149,7 +171,12 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       g.grTotal,
       g.cash,
       g.card,
-      g.online
+      g.online,
+      null, // J spacer
+      null, // K
+      null, // L
+      null, // M spacer
+      g.tip || 0 // N TIP
     ]);
   });
 
@@ -158,12 +185,17 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     null,
     sumFood, sumFood,
     sumLiquor, sumLiquor,
-    sumGrTotal, sumCash, sumCard, sumOnline
+    sumGrTotal, sumCash, sumCard, sumOnline,
+    null,
+    null,
+    null,
+    null,
+    null // N no operation on tip
   ]);
 
   const grossAmount = sumGrTotal + overallCancel + overallDiscount - overallService;
 
-  while (aoa.length <= 10) aoa.push(new Array(12).fill(null));
+  while (aoa.length <= 11) aoa.push(new Array(14).fill(null));
 
   aoa[6][9] = null;
   aoa[6][10] = "GROSS AMOUNT:";
@@ -226,13 +258,13 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
       worksheet[cell].s.font = rowNum === 1 || rowNum === 2 ? titleFont : { bold: true, color: { rgb: "555555" } };
     }
 
-    // Main Table header (row 7)
-    if (rowNum === 7 && colStr <= 'I') {
+    // Main Table header (row 7) and TIP header (Col N)
+    if (rowNum === 7 && (colStr <= 'I' || colStr === 'N')) {
       worksheet[cell].s = headerStyle;
-    } else if (rowNum > 7 && rowNum < bottomTotalRowIndex && colStr <= 'I') {
+    } else if (rowNum > 7 && rowNum < bottomTotalRowIndex && (colStr <= 'I' || colStr === 'N')) {
       // Table data
       worksheet[cell].s = dataStyle;
-    } else if (rowNum === bottomTotalRowIndex && colStr <= 'I') {
+    } else if (rowNum === bottomTotalRowIndex && (colStr <= 'I' || colStr === 'N')) {
       // Bottom total inner row
       worksheet[cell].s = totalsStyle;
     }
@@ -257,18 +289,20 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
   }
 
   worksheet["!cols"] = [
-    { wch: 14 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 4 },
-    { wch: 25 },
-    { wch: 15 }
+    { wch: 14 }, // A: DATE
+    { wch: 12 }, // B: FOOD
+    { wch: 12 }, // C: TOTAL
+    { wch: 12 }, // D: LIQUOR
+    { wch: 12 }, // E: TOTAL
+    { wch: 12 }, // F: GR.TOTAL
+    { wch: 12 }, // G: CASH
+    { wch: 12 }, // H: CARD
+    { wch: 12 }, // I: ONLINE
+    { wch: 4 },  // J: spacer
+    { wch: 25 }, // K: side summary label
+    { wch: 15 }, // L: side summary value
+    { wch: 4 },  // M: spacer
+    { wch: 12 }  // N: TIP
   ];
 
   const workbook = XLSX.utils.book_new();
