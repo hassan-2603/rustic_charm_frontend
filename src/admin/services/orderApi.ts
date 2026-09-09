@@ -25,6 +25,37 @@ export function listenOrders(callback: (orders: any[]) => void) {
   };
 }
 
+export async function getReportOrders(): Promise<any[]> {
+  try {
+    const data = await requestAdminJson(`${BASE}?includeCompleted=true&forReports=true`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Error loading report orders:", err);
+    return [];
+  }
+}
+
+export function listenReportOrders(callback: (orders: any[]) => void) {
+  let active = true;
+
+  const load = async () => {
+    try {
+      const data = await requestAdminJson(`${BASE}?includeCompleted=true&forReports=true`);
+      if (active && Array.isArray(data)) callback(data);
+    } catch (err) {
+      console.error("Error loading report orders:", err);
+    }
+  };
+
+  load();
+  const interval = setInterval(load, 15000);
+
+  return () => {
+    active = false;
+    clearInterval(interval);
+  };
+}
+
 export async function deleteAllCompletedOrders() {
   return await requestAdminJson(`${BASE}?completedOnly=true`, {
     method: "DELETE",

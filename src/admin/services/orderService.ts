@@ -1,5 +1,7 @@
 export {
   listenOrders,
+  listenReportOrders,
+  getReportOrders,
   deleteAllCompletedOrders,
   deleteAllOrders,
   updateOrder,

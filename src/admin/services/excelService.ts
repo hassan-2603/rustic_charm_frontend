@@ -13,9 +13,28 @@ function parseDate(value: any): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function toIndiaDate(date: Date) {
-  const tzStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
-  return new Date(tzStr);
+function toIndiaDate(date: Date): Date {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    }).formatToParts(date);
+    const p: Record<string, number> = {};
+    for (const part of parts) {
+      if (part.type !== 'literal') p[part.type] = parseInt(part.value, 10);
+    }
+    return new Date(p.year, p.month - 1, p.day, p.hour === 24 ? 0 : p.hour, p.minute, p.second);
+  } catch {
+    const tzStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    const d = new Date(tzStr);
+    return isNaN(d.getTime()) ? date : d;
+  }
 }
 
 function formatStr(date: Date) {
@@ -32,7 +51,12 @@ function formatTime(date: Date) {
   return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
 }
 
-export function generateRusticCharmReport(orders: any[], filenamePrefix: string, isAuto: boolean = false) {
+export function generateRusticCharmReport(
+  orders: any[],
+  filenamePrefix: string,
+  isAuto: boolean = false,
+  dateRangeOverride?: { start: string; end: string }
+) {
   const groups: Record<string, any> = {};
 
   let overallCancel = 0;
@@ -67,7 +91,9 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
     let lTotal = 0;
     order.items?.forEach((item: any) => {
       const cat = item.category?.English || item.category || "";
-      const isLiquor = /beer|wine|liquor|liqueur|cocktail|spirits|alcohol|whisky|whiskey|vodka|rum|gin|tequila|brandy/i.test(cat);
+      const isLiquor =
+        /beer|wine|liquor|liqueur|cocktail|spirits|alcohol|whisky|whiskey|vodka|rum|gin|tequila|brandy/i.test(cat) ||
+        /beer|wine|liquor|liqueur|cocktail|spirits|alcohol|whisky|whiskey|vodka|rum|gin|tequila|brandy|budweiser|kingfisher|tuborg|heineken|carlsberg|hoegaarden|breezer|cabo|port no|johnnie walker|teacher|smirnoff|bacardi/i.test(item.name || "");
       const lineTotal = (Number(item.price) || 0) * (Number(item.quantity) || 0);
       if (isLiquor) lTotal += lineTotal;
       else fTotal += lineTotal;
@@ -138,8 +164,8 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
 
   const nowIndia = toIndiaDate(new Date());
 
-  const minDateStr = sortedDates.length > 0 ? sortedDates[0].dateStr : formatStr(nowIndia);
-  const maxDateStr = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1].dateStr : formatStr(nowIndia);
+  const minDateStr = dateRangeOverride?.start || (sortedDates.length > 0 ? sortedDates[0].dateStr : formatStr(nowIndia));
+  const maxDateStr = dateRangeOverride?.end || (sortedDates.length > 0 ? sortedDates[sortedDates.length - 1].dateStr : formatStr(nowIndia));
   const printDateStr = formatStr(nowIndia) + " " + formatTime(nowIndia);
 
   const aoa: any[][] = [
@@ -315,10 +341,16 @@ export function generateRusticCharmReport(orders: any[], filenamePrefix: string,
   );
 }
 
-export function exportOrdersExcel(orders: any[], isAuto: boolean = false, prefix: string = "Orders") {
-  generateRusticCharmReport(orders, prefix, isAuto);
+export function exportOrdersExcel(
+  orders: any[],
+  isAuto: boolean = false,
+  prefix: string = "Orders",
+  dateRangeOverride?: { start: string; end: string }
+) {
+  generateRusticCharmReport(orders, prefix, isAuto, dateRangeOverride);
 }
 
 export function exportRevenueExcel(orders: any[]) {
   generateRusticCharmReport(orders, "Revenue");
 }
+

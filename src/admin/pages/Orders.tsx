@@ -6,7 +6,7 @@ import OrderCard from "../components/OrderCard";
 import OrderDetailsDrawer from "../components/OrderDetailsDrawer";
 import EmptyOrders from "../components/EmptyOrders";
 
-import { listenOrders, deleteAllOrders } from "../services/orderService";
+import { listenOrders, getReportOrders, deleteAllOrders } from "../services/orderService";
 
 function parseOrderDate(value: any): Date | null {
   if (!value) return null;
@@ -20,120 +20,104 @@ function parseOrderDate(value: any): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function toIndiaDate(date: Date): Date {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    }).formatToParts(date);
+    const p: Record<string, number> = {};
+    for (const part of parts) {
+      if (part.type !== 'literal') p[part.type] = parseInt(part.value, 10);
+    }
+    return new Date(p.year, p.month - 1, p.day, p.hour === 24 ? 0 : p.hour, p.minute, p.second);
+  } catch {
+    const tzStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    const d = new Date(tzStr);
+    return isNaN(d.getTime()) ? date : d;
+  }
+}
+
+function getOrderBizDate(order: any): Date | null {
+  const d = parseOrderDate(order.createdAt);
+  if (!d) return null;
+  const bizDate = toIndiaDate(d);
+  if (bizDate.getHours() < 7) {
+    bizDate.setDate(bizDate.getDate() - 1);
+  }
+  return bizDate;
+}
+
+function getTodayBizDate(): Date {
+  const bizDate = toIndiaDate(new Date());
+  if (bizDate.getHours() < 7) {
+    bizDate.setDate(bizDate.getDate() - 1);
+  }
+  return bizDate;
+}
+
+function formatStr(date: Date) {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}-${date.getFullYear()}`;
+}
+
 function isEligibleForReport(order: any): boolean {
   if (!order) return false;
   const status = String(order.status || "").toLowerCase();
-  // Exclude only rejected orders; include Completed, Payment Done, Accepted, Served, etc.
-  if (status === "rejected") return false;
+  // Exclude cancelled and rejected orders from sales reports
+  if (status === "rejected" || status === "cancelled") return false;
   return true;
 }
 
-/**
- * Derives the active shift window based on the current time and returns orders 
- * within that window.
- */
-function getPeriodOrders(orders: any[], daysAgo: number) {
-  const now = new Date();
-  const shiftEnd = new Date(now);
-  if (now.getHours() < 7) {
-    shiftEnd.setDate(shiftEnd.getDate() - 1);
-  }
-  shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(4, 0, 0, 0);
-
-  const shiftStart = new Date(shiftEnd);
-  shiftStart.setDate(shiftStart.getDate() - daysAgo);
-  shiftStart.setHours(6, 0, 0, 0);
+function getDailyOrders(orders: any[], targetBizDate = getTodayBizDate()) {
+  const y = targetBizDate.getFullYear();
+  const m = targetBizDate.getMonth();
+  const d = targetBizDate.getDate();
 
   return orders.filter((order) => {
-    const created = parseOrderDate(order.createdAt);
-    if (!created) return false;
-    return (
-      created >= shiftStart &&
-      created <= shiftEnd &&
-      isEligibleForReport(order)
-    );
+    if (!isEligibleForReport(order)) return false;
+    const b = getOrderBizDate(order);
+    return b && b.getFullYear() === y && b.getMonth() === m && b.getDate() === d;
   });
 }
 
-function getDailyOrders(orders: any[], isAutoScheduled: boolean = false) {
-  const now = new Date();
-  const shiftEnd = new Date(now);
-  shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(23, 59, 59, 999);
+function get15DayFirstHalfOrders(orders: any[], targetDate = getTodayBizDate()) {
+  const y = targetDate.getFullYear();
+  const m = targetDate.getMonth();
 
-  const shiftStart = new Date(now);
-  if (isAutoScheduled) {
-    // Scheduled auto-download: standard completed shift window
-    shiftStart.setDate(shiftStart.getDate() - 1);
-    shiftStart.setHours(6, 0, 0, 0);
-  } else {
-    // Manual click: include all payments done till today (past 3 days accumulation)
-    shiftStart.setDate(shiftStart.getDate() - 3);
-    shiftStart.setHours(0, 0, 0, 0);
-  }
-
-  const matched = orders.filter((order) => {
-    const created = parseOrderDate(order.createdAt);
-    if (!created) return false;
-    return (
-      created >= shiftStart &&
-      created <= shiftEnd &&
-      isEligibleForReport(order)
-    );
+  return orders.filter((order) => {
+    if (!isEligibleForReport(order)) return false;
+    const b = getOrderBizDate(order);
+    return b && b.getFullYear() === y && b.getMonth() === m && b.getDate() >= 1 && b.getDate() <= 15;
   });
-
-  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
 }
 
-function get15DayOrders(orders: any[]) {
-  const now = new Date();
-  const shiftEnd = new Date(now);
-  shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(23, 59, 59, 999);
+function get15DaySecondHalfOrders(orders: any[], targetDate = getTodayBizDate()) {
+  const y = targetDate.getFullYear();
+  const m = targetDate.getMonth();
 
-  // Past 15 days window up to now
-  const shiftStart = new Date(now);
-  shiftStart.setDate(shiftStart.getDate() - 15);
-  shiftStart.setHours(0, 0, 0, 0);
-
-  const matched = orders.filter((order) => {
-    const created = parseOrderDate(order.createdAt);
-    if (!created) return false;
-    return (
-      created >= shiftStart &&
-      created <= shiftEnd &&
-      isEligibleForReport(order)
-    );
+  return orders.filter((order) => {
+    if (!isEligibleForReport(order)) return false;
+    const b = getOrderBizDate(order);
+    return b && b.getFullYear() === y && b.getMonth() === m && b.getDate() >= 16;
   });
-
-  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
 }
 
-function getMonthlyOrders(orders: any[]) {
-  const now = new Date();
-  const shiftEnd = new Date(now);
-  shiftEnd.setDate(shiftEnd.getDate() + 1);
-  shiftEnd.setHours(23, 59, 59, 999);
+function getMonthlyOrders(orders: any[], targetDate = getTodayBizDate()) {
+  const y = targetDate.getFullYear();
+  const m = targetDate.getMonth();
 
-  let shiftStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  if (now.getDate() <= 5) {
-    shiftStart = new Date(now);
-    shiftStart.setDate(shiftStart.getDate() - 30);
-    shiftStart.setHours(0, 0, 0, 0);
-  }
-
-  const matched = orders.filter((order) => {
-    const created = parseOrderDate(order.createdAt);
-    if (!created) return false;
-    return (
-      created >= shiftStart &&
-      created <= shiftEnd &&
-      isEligibleForReport(order)
-    );
+  return orders.filter((order) => {
+    if (!isEligibleForReport(order)) return false;
+    const b = getOrderBizDate(order);
+    return b && b.getFullYear() === y && b.getMonth() === m;
   });
-
-  return matched.length > 0 ? matched : orders.filter(isEligibleForReport);
 }
 
 export default function Orders() {
@@ -142,63 +126,94 @@ export default function Orders() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [downloading, setDownloading] = useState(false);
 
+  // Active unarchived orders on screen
   useEffect(() => {
     const unsubscribe = listenOrders(setOrders);
     return () => unsubscribe();
   }, []);
 
-  // Automatic download logic (Daily, 15-day, Monthly)
+  // Automatic download schedule (Daily, 15-day, Monthly)
+  // ALWAYS uses getReportOrders() so data is never missed even if screen orders were cleared
   useEffect(() => {
-    if (!orders || orders.length === 0) return;
+    const checkAndDownload = async () => {
+      try {
+        const now = toIndiaDate(new Date());
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const currentHour = now.getHours();
+        const dayOfMonth = now.getDate();
 
-    const checkAndDownload = () => {
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const currentHour = now.getHours();
-      const dayOfMonth = now.getDate();
-
-      // Daily Check (Triggered after 1:00 AM or when app is opened next day)
-      if (currentHour >= 1) {
-        const lastAutoDownload = localStorage.getItem("lastAutoDownloadDate_daily");
-        if (lastAutoDownload !== todayStr) {
-          const shiftOrders = getDailyOrders(orders, true);
-          if (shiftOrders.length > 0) {
-            exportOrdersExcel(shiftOrders, true, "Daily");
-            localStorage.setItem("lastAutoDownloadDate_daily", todayStr);
+        // Daily Auto-Download (Triggered after 1:00 AM)
+        if (currentHour >= 1) {
+          const lastAutoDaily = localStorage.getItem("lastAutoDownloadDate_daily");
+          if (lastAutoDaily !== todayStr) {
+            const allReportOrders = await getReportOrders();
+            const yesterdayBiz = new Date(now);
+            yesterdayBiz.setDate(yesterdayBiz.getDate() - 1);
+            const dailyOrders = getDailyOrders(allReportOrders, yesterdayBiz);
+            if (dailyOrders.length > 0) {
+              const dStr = formatStr(yesterdayBiz);
+              exportOrdersExcel(dailyOrders, true, "Daily_Report", { start: dStr, end: dStr });
+              localStorage.setItem("lastAutoDownloadDate_daily", todayStr);
+            }
           }
         }
-      }
 
-      // 15-day check (Triggered every 1st and 16th of the month)
-      if ((dayOfMonth === 1 || dayOfMonth === 16) && currentHour >= 1) {
-        const lastAuto15 = localStorage.getItem("lastAutoDownloadDate_15day");
-        if (lastAuto15 !== todayStr) {
-          const shiftOrders = get15DayOrders(orders);
-          if (shiftOrders.length > 0) {
-            exportOrdersExcel(shiftOrders, true, "15Days");
-            localStorage.setItem("lastAutoDownloadDate_15day", todayStr);
+        // 15-Day Auto-Download: 1st-15th (Triggered on the 16th of each month after 1:00 AM)
+        if (dayOfMonth === 16 && currentHour >= 1) {
+          const lastAuto15 = localStorage.getItem("lastAutoDownloadDate_15day_first_half");
+          if (lastAuto15 !== todayStr) {
+            const allReportOrders = await getReportOrders();
+            const firstHalfOrders = get15DayFirstHalfOrders(allReportOrders, now);
+            if (firstHalfOrders.length > 0) {
+              const y = now.getFullYear(), m = now.getMonth();
+              const start = formatStr(new Date(y, m, 1));
+              const end = formatStr(new Date(y, m, 15));
+              exportOrdersExcel(firstHalfOrders, true, "15Days_1st_to_15th", { start, end });
+              localStorage.setItem("lastAutoDownloadDate_15day_first_half", todayStr);
+            }
           }
         }
-      }
 
-      // Monthly check (Triggered on the 1st of every month)
-      if (dayOfMonth === 1 && currentHour >= 1) {
-        const lastAutoMonth = localStorage.getItem("lastAutoDownloadDate_monthly");
-        if (lastAutoMonth !== todayStr) {
-          const shiftOrders = getMonthlyOrders(orders);
-          if (shiftOrders.length > 0) {
-            exportOrdersExcel(shiftOrders, true, "Monthly");
-            localStorage.setItem("lastAutoDownloadDate_monthly", todayStr);
+        // 15-Day (16th-End) & Monthly Auto-Download (Triggered on the 1st of every month after 1:00 AM)
+        if (dayOfMonth === 1 && currentHour >= 1) {
+          const lastAutoMonth = localStorage.getItem("lastAutoDownloadDate_monthly_cycle");
+          if (lastAutoMonth !== todayStr) {
+            const allReportOrders = await getReportOrders();
+            const prevMonthDate = new Date(now);
+            prevMonthDate.setDate(0); // Last day of previous month
+            const y = prevMonthDate.getFullYear(), m = prevMonthDate.getMonth();
+            const lastDay = prevMonthDate.getDate();
+
+            // 16th to End of previous month
+            const secondHalfOrders = get15DaySecondHalfOrders(allReportOrders, prevMonthDate);
+            if (secondHalfOrders.length > 0) {
+              const start = formatStr(new Date(y, m, 16));
+              const end = formatStr(new Date(y, m, lastDay));
+              exportOrdersExcel(secondHalfOrders, true, "15Days_16th_to_End", { start, end });
+            }
+
+            // Full Monthly for previous month
+            const fullMonthOrders = getMonthlyOrders(allReportOrders, prevMonthDate);
+            if (fullMonthOrders.length > 0) {
+              const start = formatStr(new Date(y, m, 1));
+              const end = formatStr(new Date(y, m, lastDay));
+              exportOrdersExcel(fullMonthOrders, true, "Monthly_Report", { start, end });
+            }
+
+            localStorage.setItem("lastAutoDownloadDate_monthly_cycle", todayStr);
           }
         }
+      } catch (e) {
+        console.error("Auto-download error:", e);
       }
     };
 
     checkAndDownload();
-    const interval = setInterval(checkAndDownload, 60000); // check every minute
+    const interval = setInterval(checkAndDownload, 60000);
     return () => clearInterval(interval);
-  }, [orders]);
+  }, []);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -216,67 +231,132 @@ export default function Orders() {
 
   async function handleDeleteAll() {
     const ok = window.confirm(
-      "Delete ALL orders? This cannot be undone."
+      "Clear active orders from this screen?\n\nNOTE: All order history and sales remain PERMANENTLY saved in your Daily, 15-Day, and Monthly reports."
     );
 
     if (!ok) return;
 
     try {
       await deleteAllOrders();
-      alert("All orders deleted successfully.");
+      alert("Screen cleared successfully.\n\nAll orders remain 100% intact and available in your reports.");
     } catch (err) {
       console.error(err);
-      alert("Unable to delete orders.");
+      alert("Unable to clear screen orders.");
     }
   }
 
-  function handleDownloadReport(type: "Daily" | "15Days" | "Monthly") {
-    let list: any[] = [];
-    if (type === "Daily") list = getDailyOrders(orders);
-    else if (type === "15Days") list = get15DayOrders(orders);
-    else if (type === "Monthly") list = getMonthlyOrders(orders);
+  async function handleDownloadReport(type: "Daily" | "15Days_1" | "15Days_2" | "Monthly") {
+    setDownloading(true);
+    try {
+      // ALWAYS load full report orders (including soft-archived) so no orders are ever lost
+      const allReportOrders = await getReportOrders();
+      const targetDate = getTodayBizDate();
+      const y = targetDate.getFullYear();
+      const m = targetDate.getMonth();
+      const lastDay = new Date(y, m + 1, 0).getDate();
 
-    if (list.length === 0) {
-      const fallback = orders.filter(isEligibleForReport);
-      if (fallback.length === 0) {
-        alert(`No order history found to generate ${type} report.`);
+      let list: any[] = [];
+      let prefix = "Orders";
+      let rangeOverride: { start: string; end: string } | undefined;
+
+      if (type === "Daily") {
+        list = getDailyOrders(allReportOrders, targetDate);
+        prefix = "Daily_Report";
+        const dStr = formatStr(targetDate);
+        rangeOverride = { start: dStr, end: dStr };
+
+        if (list.length === 0) {
+          // Fallback to most recent day with orders if today has no orders yet
+          const eligible = allReportOrders.filter(isEligibleForReport);
+          if (eligible.length > 0) {
+            const mostRecentBiz = getOrderBizDate(eligible[0]) || targetDate;
+            list = getDailyOrders(allReportOrders, mostRecentBiz);
+            const rStr = formatStr(mostRecentBiz);
+            rangeOverride = { start: rStr, end: rStr };
+          }
+        }
+      } else if (type === "15Days_1") {
+        list = get15DayFirstHalfOrders(allReportOrders, targetDate);
+        prefix = "15Days_1st_to_15th";
+        rangeOverride = {
+          start: formatStr(new Date(y, m, 1)),
+          end: formatStr(new Date(y, m, 15)),
+        };
+      } else if (type === "15Days_2") {
+        list = get15DaySecondHalfOrders(allReportOrders, targetDate);
+        prefix = "15Days_16th_to_End";
+        rangeOverride = {
+          start: formatStr(new Date(y, m, 16)),
+          end: formatStr(new Date(y, m, lastDay)),
+        };
+      } else if (type === "Monthly") {
+        list = getMonthlyOrders(allReportOrders, targetDate);
+        prefix = "Monthly_Report";
+        rangeOverride = {
+          start: formatStr(new Date(y, m, 1)),
+          end: formatStr(new Date(y, m, lastDay)),
+        };
+      }
+
+      if (list.length === 0) {
+        alert(`No order history found for this period (${rangeOverride?.start} to ${rangeOverride?.end}).`);
         return;
       }
-      exportOrdersExcel(fallback, false, type);
-    } else {
-      exportOrdersExcel(list, false, type);
+
+      exportOrdersExcel(list, false, prefix, rangeOverride);
+    } catch (err) {
+      console.error("Error generating report:", err);
+      alert("Failed to download report. Please check connection.");
+    } finally {
+      setDownloading(false);
     }
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         <button
           onClick={() => handleDownloadReport("Daily")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
+          disabled={downloading}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title="Download today's business day sales report"
         >
-          Download Daily Excel
+          <span>📊</span> Download Daily Excel
         </button>
         
         <button
-          onClick={() => handleDownloadReport("15Days")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
+          onClick={() => handleDownloadReport("15Days_1")}
+          disabled={downloading}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title="Download 1st to 15th half-month report"
         >
-          Download 15 Days Excel
+          <span>📅</span> Download 15 Days (1st - 15th)
+        </button>
+
+        <button
+          onClick={() => handleDownloadReport("15Days_2")}
+          disabled={downloading}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title="Download 16th to end-of-month report"
+        >
+          <span>📅</span> Download 15 Days (16th - End)
         </button>
 
         <button
           onClick={() => handleDownloadReport("Monthly")}
-          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
+          disabled={downloading}
+          className="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title="Download full month report (1st to end)"
         >
-          Download Monthly Excel
+          <span>🗓️</span> Download Monthly Excel
         </button>
 
         <button
           onClick={handleDeleteAll}
-          className="bg-gray-900 hover:bg-black text-white px-5 py-2 rounded-xl font-semibold whitespace-nowrap shadow-sm transition"
+          className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2 ml-auto"
+          title="Clears orders from active screen. Daily, 15-Day, and Monthly reports remain 100% saved."
         >
-          Delete All Orders
+          <span>🧹</span> Clear Screen Orders
         </button>
       </div>
 
