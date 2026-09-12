@@ -228,3 +228,15 @@ export async function updateOrderSplits(orderId: string, splits: any[]) {
     body: JSON.stringify({ splits }),
   });
 }
+
+export async function updateOrderTable(orderId: string, tableId: string) {
+  return requestAdminJson(`/orders/${orderId}`, {
+    method: "PUT",
+    body: JSON.stringify({ tableId }),
+  });
+}
+
+export async function getTables() {
+  return requestAdminJson("/tables");
+}
+

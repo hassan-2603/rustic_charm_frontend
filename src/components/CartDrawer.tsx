@@ -25,7 +25,7 @@ export default function CartDrawer({
   onPlaceOrder,
   isPlacingOrder,
 }: CartDrawerProps) {
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.English;
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function CartDrawer({
                         {t.cartEmpty}
                       </h3>
                       <p className="text-xs text-soft-gray leading-relaxed">
-                        {TRANSLATIONS[language].subtitle}
+                        {t.subtitle}
                       </p>
                     </div>
                   </div>

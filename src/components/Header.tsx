@@ -23,7 +23,7 @@ export default function Header({
   hasActiveOrder,
   onOrdersClick,
 }: HeaderProps) {
-  const t = TRANSLATIONS[currentLanguage];
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.English;
   return (
     <header
       className="sticky top-0 z-40 bg-cream/90 backdrop-blur-md border-b border-light-gray/40 transition-all duration-300"

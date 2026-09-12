@@ -11,7 +11,7 @@ interface CallWaiterButtonProps {
 
 export default function CallWaiterButton({ language, onCallWaiter }: CallWaiterButtonProps) {
   const [isNotified, setIsNotified] = useState(false);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.English;
 
   const handleCall = async () => {
     setIsNotified(true);

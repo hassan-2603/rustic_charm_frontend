@@ -5,6 +5,7 @@ import DiscountModal from "../../components/DiscountModal";
 import SplitBillModal from "../../components/SplitBillModal";
 import AddItemModal from "../components/AddItemModal";
 import RemoveItemModal from "../components/RemoveItemModal";
+import ChangeTableModal from "../components/ChangeTableModal";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
 import { openReceiptPreview } from "../../utils/receiptPreview";
 import type { DiscountPayload } from "../../utils/discountUtils";
@@ -20,7 +21,8 @@ import {
     cancelOrder,
     updateOrderSplits,
     updateOrderItemPrices,
-    listenTables
+    listenTables,
+    getTables,
 } from "../services/waiterService";
 import { ArrowLeft } from "lucide-react";
 
@@ -37,6 +39,7 @@ export default function TableOrders() {
     const [kotStates, setKotStates] = useState<Record<string, PrintButtonState>>({});
     const [lastJobId, setLastJobId] = useState<Record<string, string>>({});
     const [discountOrder, setDiscountOrder] = useState<any>(null);
+    const [changeTableOrder, setChangeTableOrder] = useState<any>(null);
     const [addItemOrder, setAddItemOrder] = useState<any>(null);
     const [removeItemOrder, setRemoveItemOrder] = useState<any>(null);
     const [splitOrder, setSplitOrder] = useState<any>(null);
@@ -123,6 +126,17 @@ export default function TableOrders() {
         setOrders((current) => current.map((order) => (order.id === discountOrder.id ? { ...order, ...payload, ...updated } : order)));
     }
 
+    function handleOpenChangeTable(order: any) { setChangeTableOrder(order); }
+    async function handleTableChanged(updated: any) {
+        setOrders((current) => current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order)));
+        try {
+            const freshTables = await getTables();
+            if (Array.isArray(freshTables)) setTables(freshTables);
+        } catch (e) {
+            console.error("Error refreshing tables:", e);
+        }
+    }
+
     function handleOpenAddItem(order: any) { setAddItemOrder(order); }
     function handleItemsAdded(updated: any) {
         setOrders((current) => current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order)));
@@ -191,6 +205,7 @@ export default function TableOrders() {
                             onSplit={handleOpenSplit}
                             onEditPrices={handleOpenEditPrices}
                             onDiscount={handleOpenDiscount}
+                            onChangeTable={handleOpenChangeTable}
                             onAddItem={handleOpenAddItem}
                             onRemoveItem={handleOpenRemoveItem}
                             onCancel={handleCancelOrder}
@@ -214,6 +229,7 @@ export default function TableOrders() {
             />
 
             <DiscountModal open={!!discountOrder} order={discountOrder} onClose={() => setDiscountOrder(null)} onSave={handleSaveDiscount} />
+            <ChangeTableModal open={!!changeTableOrder} order={changeTableOrder} tables={tables} onClose={() => setChangeTableOrder(null)} onTableChanged={handleTableChanged} />
             <AddItemModal open={!!addItemOrder} order={addItemOrder} onClose={() => setAddItemOrder(null)} onItemAdded={handleItemsAdded} />
             <RemoveItemModal open={!!removeItemOrder} order={removeItemOrder} onClose={() => setRemoveItemOrder(null)} onItemsRemoved={handleItemsRemoved} />
             <SplitBillModal open={!!splitOrder} order={splitOrder} onClose={() => setSplitOrder(null)} onSave={handleSaveSplit} />

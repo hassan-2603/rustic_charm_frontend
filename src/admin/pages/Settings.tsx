@@ -358,20 +358,40 @@ export default function Settings() {
     setPrinters((current) => ({ ...current, [type]: updated }));
   }
 
+  const [translating, setTranslating] = useState(false);
+  const [progressText, setProgressText] = useState("");
+
   async function handleTranslate() {
     const ok = confirm(
-      "This will translate your menu into all supported languages.\n\nContinue?"
+      "This will translate untranslated menu items and descriptions into all supported languages.\n\nExisting translations and English will NOT be modified.\n\nContinue?"
     );
 
     if (!ok) return;
 
-    try {
-      await translateEntireMenu();
+    setTranslating(true);
+    setProgressText("Fetching menu items...");
 
-      alert("✅ Menu translated successfully.");
+    try {
+      const summary = await translateEntireMenu((progress) => {
+        setProgressText(
+          `Translating ${progress.current} of ${progress.total}: ${progress.itemName}`
+        );
+      });
+
+      alert(
+        `✅ Translation Completed!\n\n` +
+        `• Total items inspected: ${summary.total}\n` +
+        `• Items newly translated: ${summary.itemsTranslated}\n` +
+        `• Descriptions translated: ${summary.descriptionsTranslated}\n` +
+        `• Items already translated (skipped): ${summary.skippedCount}\n\n` +
+        `All previous translations and English names remain completely untouched.`
+      );
     } catch (err) {
       console.error(err);
-      alert("❌ Translation failed. Check console.");
+      alert("❌ Translation failed. Check console for details.");
+    } finally {
+      setTranslating(false);
+      setProgressText("");
     }
   }
 
@@ -427,12 +447,30 @@ export default function Settings() {
             </p>
           </div>
 
-          <button
-            onClick={handleTranslate}
-            className="bg-olive text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90"
-          >
-            🌍 Translate Menu
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={handleTranslate}
+              disabled={translating}
+              className="bg-olive text-white px-6 py-3 rounded-xl font-semibold hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 transition"
+            >
+              {translating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Translating Menu...</span>
+                </>
+              ) : (
+                <>
+                  <span>🌍</span>
+                  <span>Translate Menu</span>
+                </>
+              )}
+            </button>
+            {translating && progressText && (
+              <p className="text-xs text-olive font-medium animate-pulse max-w-xs text-right truncate">
+                {progressText}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

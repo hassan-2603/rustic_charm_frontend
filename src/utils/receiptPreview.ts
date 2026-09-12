@@ -74,6 +74,18 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push(`KOT No: ${order.orderNumber ?? "--"}`);
     lines.push(`Table: ${order.tableLabel || order.tableReference || order.tableNumber || "--"}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
+    lines.push(
+      `Date: ${new Date().toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })}`
+    );
     lines.push("------------------------------------------");
     if (order.addedItems && order.addedItems.length > 0) {
       lines.push("--- ADDED ---");
@@ -104,6 +116,18 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push(`Table: ${order.tableLabel || order.tableReference || order.tableNumber || "--"}`);
     if (order.customerName) lines.push(`Customer: ${order.customerName}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
+    lines.push(
+      `Date: ${new Date(order.createdAt || Date.now()).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })}`
+    );
     lines.push("------------------------------------------");
 
     lines.push("Particulars              Qty   Rate Amount");

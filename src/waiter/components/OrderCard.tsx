@@ -1,4 +1,4 @@
-import { Percent, FileText } from "lucide-react";
+import { Percent, FileText, UtensilsCrossed } from "lucide-react";
 
 export type PrintButtonState = {
   /** true only while the job is genuinely in flight (PENDING/PROCESSING) */
@@ -23,6 +23,7 @@ interface Props {
   onSplit?: (order: any) => void;
   onEditPrices?: (order: any) => void;
   onDiscount?: (order: any) => void;
+  onChangeTable?: (order: any) => void;
   onAddItem?: (order: any) => void;
   onRemoveItem?: (order: any) => void;
   onCancel?: (order: any) => void;
@@ -93,6 +94,7 @@ export default function OrderCard({
   onSplit,
   onEditPrices,
   onDiscount,
+  onChangeTable,
   onAddItem,
   onRemoveItem,
   onCancel,
@@ -217,6 +219,16 @@ export default function OrderCard({
             >
               <Percent size={15} />
               {hasDiscount ? "Edit Discount" : "Discount"}
+            </button>
+          )}
+
+          {onChangeTable && (
+            <button
+              onClick={() => onChangeTable(order)}
+              className="px-5 py-2 rounded-xl font-semibold border transition bg-white text-gray-800 border-gray-300 hover:bg-gray-50 flex items-center justify-center gap-1.5"
+            >
+              <UtensilsCrossed size={15} />
+              Change Table
             </button>
           )}
 

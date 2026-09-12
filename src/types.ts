@@ -55,8 +55,15 @@ export function getLocalizedField(field: any, language: string, fullItem?: any):
 
   const langCode = langCodeMap[language] || null;
 
-  if (langCode && langCode !== "en" && fullItem?.translations?.[langCode]?.name) {
-    return fullItem.translations[langCode].name;
+  if (langCode && langCode !== "en" && fullItem?.translations?.[langCode]) {
+    const isDesc = field === fullItem.description;
+    if (isDesc) {
+      if (fullItem.translations[langCode].description) {
+        return fullItem.translations[langCode].description;
+      }
+    } else if (fullItem.translations[langCode].name) {
+      return fullItem.translations[langCode].name;
+    }
   }
 
   if (typeof field === "string" && field.trim().startsWith("{")) {

@@ -45,15 +45,32 @@ export function createPrintApi(request: Requester) {
     return request(`/print-jobs/${jobId}/retry`, { method: "POST" });
   }
 
-  /** Polls a job until it reaches a terminal state, or times out. */
-  async function waitForJob(jobId: string, { timeoutMs = 20000, intervalMs = 800 }: { timeoutMs?: number; intervalMs?: number } = {}): Promise<PrintJob> {
+  /** Polls a job until it reaches a terminal state, or times out. Uses adaptive polling for fast UI response. */
+  async function waitForJob(
+    jobId: string,
+    {
+      timeoutMs = 20000,
+      initialDelayMs = 200,
+      fastIntervalMs = 350,
+      regularIntervalMs = 700,
+      intervalMs,
+    }: {
+      timeoutMs?: number;
+      initialDelayMs?: number;
+      fastIntervalMs?: number;
+      regularIntervalMs?: number;
+      intervalMs?: number;
+    } = {}
+  ): Promise<PrintJob> {
     const start = Date.now();
     // Small initial delay: give the connector a moment before the first poll.
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, initialDelayMs));
     while (Date.now() - start < timeoutMs) {
       const job = await getPrintJob(jobId);
       if (TERMINAL_STATUSES.includes(job.status)) return job;
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      const elapsed = Date.now() - start;
+      const delay = intervalMs ?? (elapsed < 3000 ? fastIntervalMs : regularIntervalMs);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
     return { id: jobId, type: "BILL", status: "FAILED", errorMessage: "Timed out waiting for the printer to respond. It may still print — check the printer or retry." };
   }

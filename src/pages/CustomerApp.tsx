@@ -611,7 +611,7 @@ export default function CustomerApp() {
     return () => cleanupSessionListener();
   }, [tables.length > 0]);
 
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.English;
 
   // Cart operations
   const handleAddToCart = (

@@ -12,7 +12,7 @@ interface FoodCardProps {
 }
 
 export default function FoodCard({ item, language, onAddToCart, onClick }: FoodCardProps) {
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.English;
   const localizedName = getLocalizedField(item.name, language, item);
   const localizedDesc = getLocalizedField(item.description, language, item);
 

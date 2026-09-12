@@ -17,7 +17,7 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
   const [quantity, setQuantity] = useState(1);
   const [instructions, setInstructions] = useState('');
   const [selectedPriceOption, setSelectedPriceOption] = useState<{ quantity: number; amount: number } | null>(null);
-  const t = TRANSLATIONS[language];
+  const t = TRANSLATIONS[language] || TRANSLATIONS.English;
   const localizedName = item ? getLocalizedField(item.name, language, item) : "";
   const localizedDesc = item ? getLocalizedField(item.description, language, item) : "";
 
