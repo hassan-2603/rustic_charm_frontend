@@ -47,7 +47,13 @@ export default function KOT() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold">Order #{order.orderNumber}</h2>
-                <p className="text-gray-600">Table: {order.tableLabel || order.tableReference || order.tableNumber || "--"}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-gray-600">
+                  <span>Table: {order.tableLabel || order.tableReference || order.tableNumber || "--"}</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-xs font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Waiter: {order.waiterName || order.waiterId || "Self-ordered"}
+                  </span>
+                </div>
               </div>
               <div className="flex flex-col items-stretch sm:items-end gap-1">
                 <button

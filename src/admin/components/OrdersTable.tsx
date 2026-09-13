@@ -60,7 +60,12 @@ export default function OrdersTable({
               </td>
 
               <td className="p-5">
-                {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
+                <div className="font-medium text-gray-900">
+                  {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
+                </div>
+                <div className="text-xs font-semibold text-amber-900 mt-0.5">
+                  Waiter: {order.waiterName || order.waiterId || "Self-ordered"}
+                </div>
               </td>
 
               <td className="p-5">

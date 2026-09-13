@@ -3,6 +3,7 @@ import {
   Clock,
   UtensilsCrossed,
   Receipt,
+  User,
 } from "lucide-react";
 
 import StatusBadge from "./StatusBadge";
@@ -35,9 +36,16 @@ export default function OrderCard({
               Order #{order.orderNumber}
             </h2>
 
-            <p className="text-gray-500 mt-1">
-              {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+              <span className="font-semibold text-gray-800">
+                {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200 shadow-xs">
+                <User size={12} className="text-amber-700" />
+                <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
+              </span>
+            </div>
             <div className="mt-2 text-sm text-gray-600">
               <div>{order.customerName || ""}</div>
               {order.customerPhone ? <div className="text-gray-500">{order.customerPhone}</div> : null}

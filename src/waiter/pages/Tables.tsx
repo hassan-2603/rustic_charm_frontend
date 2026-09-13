@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { listenTables } from "../services/waiterService";
-import { DEFAULT_TABLE_AREAS, getAreaLabel } from "../../utils/tableUtils";
+import { listenTables, listenOrders } from "../services/waiterService";
+import { DEFAULT_TABLE_AREAS } from "../../utils/tableUtils";
+import { User } from "lucide-react";
 
 export default function Tables() {
     const [tables, setTables] = useState<any[]>([]);
+    const [orders, setOrders] = useState<any[]>([]);
 
     useEffect(() => {
-        const unsubscribe = listenTables(setTables);
-        return () => unsubscribe();
+        const unsubTables = listenTables(setTables);
+        const unsubOrders = listenOrders(setOrders);
+        return () => {
+            unsubTables();
+            unsubOrders();
+        };
     }, []);
 
     const groupedTables = useMemo(() => {
@@ -46,6 +52,16 @@ export default function Tables() {
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
                                 {areaTables.map((table) => {
                                     const isOccupied = table.occupied || (table.status && table.status.toLowerCase() === "occupied");
+                                    const activeOrder = isOccupied
+                                        ? orders.find(
+                                            (o) =>
+                                                (o.tableId === table.id || o.tableReference === table.id || o.tableReference === table.tableKey) &&
+                                                o.status !== "Completed" &&
+                                                o.status !== "Rejected" &&
+                                                o.status !== "Cancelled"
+                                        )
+                                        : null;
+
                                     return (
                                         <Link
                                             key={table.id}
@@ -62,6 +78,12 @@ export default function Tables() {
                                             <span className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isOccupied ? 'bg-yellow-200' : 'bg-gray-100'}`}>
                                                 {table.status}
                                             </span>
+                                            {isOccupied && (activeOrder?.waiterName || activeOrder?.waiterId) && (
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md mt-1.5 truncate max-w-full shadow-2xs">
+                                                    <User size={10} className="text-amber-800 shrink-0" />
+                                                    <span className="truncate">{activeOrder.waiterName || activeOrder.waiterId}</span>
+                                                </span>
+                                            )}
                                         </Link>
                                     );
                                 })}

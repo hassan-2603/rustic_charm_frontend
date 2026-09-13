@@ -24,7 +24,7 @@ import {
     listenTables,
     getTables,
 } from "../services/waiterService";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User } from "lucide-react";
 
 export default function TableOrders() {
     const { tableId } = useParams();
@@ -127,26 +127,29 @@ export default function TableOrders() {
     }
 
     function handleOpenChangeTable(order: any) { setChangeTableOrder(order); }
-    async function handleTableChanged(updated: any) {
-        setOrders((current) => current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order)));
-        try {
-            const freshTables = await getTables();
-            if (Array.isArray(freshTables)) setTables(freshTables);
-        } catch (e) {
-            console.error("Error refreshing tables:", e);
+    async function handleTableChanged(updatedOrder: any) {
+        setOrders((current) =>
+            current.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+        );
+        const refreshedTables = await getTables();
+        setTables(refreshedTables);
+        if (updatedOrder.tableId !== tableId) {
+            navigate(`/waiter/tables/${updatedOrder.tableId}`);
         }
     }
 
     function handleOpenAddItem(order: any) { setAddItemOrder(order); }
-    function handleItemsAdded(updated: any) {
-        setOrders((current) => current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order)));
-        setAddItemOrder((current: any) => (current ? { ...current, ...updated } : current));
+    function handleItemsAdded(updatedOrder: any) {
+        setOrders((current) =>
+            current.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+        );
     }
 
     function handleOpenRemoveItem(order: any) { setRemoveItemOrder(order); }
-    function handleItemsRemoved(updated: any) {
-        setOrders((current) => current.map((order) => (order.id === updated.id ? { ...order, ...updated } : order)));
-        setRemoveItemOrder((current: any) => (current ? { ...current, ...updated } : current));
+    function handleItemsRemoved(updatedOrder: any) {
+        setOrders((current) =>
+            current.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+        );
     }
 
     function handleOpenSplit(order: any) { setSplitOrder(order); }
@@ -158,15 +161,19 @@ export default function TableOrders() {
     function handleOpenEditPrices(order: any) { setEditPricesOrder(order); }
     async function handleSavePrices(updates: { id: string; newPrice: number }[]) {
         if (!editPricesOrder) return;
-        const updatedOrder = await updateOrderItemPrices(editPricesOrder.id, updates);
-        setOrders((current) => current.map((order) => (order.id === editPricesOrder.id ? { ...order, ...updatedOrder } : order)));
+        const updated = await updateOrderItemPrices(editPricesOrder.id, updates);
+        setOrders((current) =>
+            current.map((o) => (o.id === editPricesOrder.id ? { ...o, ...updated } : o))
+        );
     }
 
     async function handleCancelOrder(order: any) {
-        const ok = window.confirm(`Cancel Order #${order.orderNumber}? This cannot be undone.`);
+        const ok = window.confirm(`Cancel Order #${order.orderNumber}? This will void the order and free the table.`);
         if (!ok) return;
         try {
             await cancelOrder(order.id);
+            const refreshed = await getTables();
+            setTables(refreshed);
             setOrders((current) => current.filter((o) => o.id !== order.id));
         } catch (error) {
             alert(error instanceof Error ? error.message : "Unable to cancel order.");
@@ -179,9 +186,19 @@ export default function TableOrders() {
                 <button onClick={() => navigate("/waiter/tables")} className="bg-white p-3 rounded-full shadow-sm hover:bg-gray-50">
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-4xl font-bold">
-                    {table?.displayName ?? "Table Details"}
-                </h1>
+                <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-4xl font-bold">
+                            {table?.displayName ?? "Table Details"}
+                        </h1>
+                        {activeOrders.length > 0 && (
+                            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-900 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200 shadow-xs">
+                                <User size={15} className="text-amber-700" />
+                                <span>Order by Waiter: <strong className="font-bold">{activeOrders[0].waiterName || activeOrders[0].waiterId || "Self-ordered"}</strong></span>
+                            </span>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {activeOrders.length === 0 ? (

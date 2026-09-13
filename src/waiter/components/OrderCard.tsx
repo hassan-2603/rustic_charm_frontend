@@ -1,4 +1,4 @@
-import { Percent, FileText, UtensilsCrossed } from "lucide-react";
+import { Percent, FileText, UtensilsCrossed, User } from "lucide-react";
 
 export type PrintButtonState = {
   /** true only while the job is genuinely in flight (PENDING/PROCESSING) */
@@ -108,11 +108,17 @@ export default function OrderCard({
 
         <div>
 
-          <h2 className="text-2xl font-bold">
-            {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
+            </h2>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-xs">
+              <User size={13} className="text-amber-700" />
+              <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
+            </span>
+          </div>
 
-          <p className="text-gray-500">
+          <p className="text-gray-500 mt-0.5">
             Order #{order.orderNumber}
           </p>
 

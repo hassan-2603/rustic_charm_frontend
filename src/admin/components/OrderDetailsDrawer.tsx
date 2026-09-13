@@ -10,6 +10,7 @@ import {
   FileText,
   CheckCircle2,
   Coins,
+  User,
 } from "lucide-react";
 import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables, freeTable } from "../services/tableApi";
@@ -378,13 +379,20 @@ export default function OrderDetailsDrawer({
 
           <div>
 
-            <h2 className="text-2xl font-bold">
+            <h2 className="text-2xl font-bold text-gray-900">
               Order #{order.orderNumber}
             </h2>
 
-            <p className="text-gray-500 mt-1">
-              {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+              <span className="font-semibold text-gray-800 text-base">
+                {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-xs">
+                <User size={13} className="text-amber-700" />
+                <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
+              </span>
+            </div>
 
           </div>
 
@@ -643,6 +651,18 @@ export default function OrderDetailsDrawer({
             </h3>
 
             <div className="space-y-4">
+
+              <div className="flex items-center gap-3">
+                <User size={18} className="text-amber-700" />
+                <div>
+                  <p className="text-sm text-gray-500">
+                    Created by Waiter
+                  </p>
+                  <p className="font-semibold text-gray-900">
+                    {order.waiterName || order.waiterId || "Self-ordered (Online/QR)"}
+                  </p>
+                </div>
+              </div>
 
               <div className="flex items-center gap-3">
 
