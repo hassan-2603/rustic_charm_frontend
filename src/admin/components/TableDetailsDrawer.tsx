@@ -127,7 +127,7 @@ export default function TableDetailsDrawer({
         <body>
           <div class="card">
             <div class="brand">Rustic Charm</div>
-            <div class="tagline">Exquisite European Gastronomy</div>
+            <div class="tagline">Exquisite European Cuisine</div>
             <div class="qr-wrapper">
               <img src="${qrCodeUrl}" alt="QR Code" class="qr-img" />
             </div>

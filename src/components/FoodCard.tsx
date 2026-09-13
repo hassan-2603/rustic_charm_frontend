@@ -101,9 +101,11 @@ export default function FoodCard({ item, language, onAddToCart, onClick }: FoodC
             <h3 className="font-elegant font-semibold text-xs sm:text-sm md:text-xl text-charcoal tracking-wide group-hover:text-olive transition-colors duration-300 leading-tight line-clamp-1 md:line-clamp-2">
               {localizedName}
             </h3>
-            <p className="text-[10px] sm:text-xs text-soft-gray line-clamp-1 sm:line-clamp-2 leading-relaxed mt-0.5 md:mt-1.5">
-              {localizedDesc}
-            </p>
+            {localizedDesc ? (
+              <p className="text-[10px] sm:text-xs text-soft-gray line-clamp-1 sm:line-clamp-2 leading-relaxed mt-0.5 md:mt-1.5">
+                {localizedDesc}
+              </p>
+            ) : null}
           </div>
         </div>
 

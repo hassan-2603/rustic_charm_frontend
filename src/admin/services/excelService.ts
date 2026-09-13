@@ -354,3 +354,65 @@ export function exportRevenueExcel(orders: any[]) {
   generateRusticCharmReport(orders, "Revenue");
 }
 
+export function exportFeedbackExcel(feedbacks: Array<{ menuItemName: string; feedback: string }>) {
+  const now = new Date();
+  const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+
+  const header = ["Menu Item (English)", "Feedback"];
+  const rows = feedbacks.map((f) => [
+    f.menuItemName || "Unknown Item",
+    f.feedback || "",
+  ]);
+
+  const worksheetData = [header, ...rows];
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  const thinBorder = {
+    top: { style: "thin", color: { rgb: "E0E0E0" } },
+    bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+    left: { style: "thin", color: { rgb: "E0E0E0" } },
+    right: { style: "thin", color: { rgb: "E0E0E0" } },
+  };
+
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
+    fill: { fgColor: { rgb: "556B2F" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: thinBorder,
+  };
+
+  const cellStyle = {
+    font: { color: { rgb: "333333" }, sz: 11 },
+    alignment: { vertical: "top", wrapText: true },
+    border: thinBorder,
+  };
+
+  worksheet["!cols"] = [
+    { wch: 35 }, // Menu Item (English)
+    { wch: 70 }, // Feedback
+  ];
+
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:B1");
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!worksheet[cellAddress]) continue;
+      if (R === 0) {
+        worksheet[cellAddress].s = headerStyle;
+      } else {
+        worksheet[cellAddress].s = cellStyle;
+      }
+    }
+  }
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Feedback");
+
+  const excel = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(
+    new Blob([excel], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    `Customer_Feedback_${dateStr}.xlsx`
+  );
+}
+
+

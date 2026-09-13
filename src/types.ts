@@ -32,7 +32,9 @@ export type Language =
 
 
 export function getLocalizedField(field: any, language: string, fullItem?: any): string {
-  if (!field && !fullItem?.translations) return "";
+  if (field === null || field === undefined || field === "[object Object]") {
+    if (!fullItem?.translations) return "";
+  }
 
   const langCodeMap: Record<string, string> = {
     Russian: "ru",
@@ -53,59 +55,131 @@ export function getLocalizedField(field: any, language: string, fullItem?: any):
     en: "en",
   };
 
-  const langCode = langCodeMap[language] || null;
+  const normalizedLang = String(language || "English").trim();
+  const langCode = langCodeMap[normalizedLang] || langCodeMap[normalizedLang.toLowerCase()] || "en";
+  const isEnglish = langCode === "en";
 
-  if (langCode && langCode !== "en" && fullItem?.translations?.[langCode]) {
-    const isDesc = field === fullItem.description;
-    if (isDesc) {
-      if (fullItem.translations[langCode].description) {
-        return fullItem.translations[langCode].description;
+  // Check translations table/object on fullItem if present
+  if (fullItem?.translations) {
+    if (!isEnglish && fullItem.translations[langCode]) {
+      const isDesc = field === fullItem.description;
+      if (isDesc) {
+        return fullItem.translations[langCode].description ? String(fullItem.translations[langCode].description).trim() : "";
       }
-    } else if (fullItem.translations[langCode].name) {
-      return fullItem.translations[langCode].name;
+      if (fullItem.translations[langCode].name) {
+        return String(fullItem.translations[langCode].name).trim();
+      }
+    } else if (isEnglish && fullItem.translations.en) {
+      const isDesc = field === fullItem.description;
+      if (isDesc && fullItem.translations.en.description) {
+        return String(fullItem.translations.en.description).trim();
+      }
+      if (fullItem.translations.en.name) {
+        return String(fullItem.translations.en.name).trim();
+      }
     }
   }
 
+  if (field === null || field === undefined || field === "[object Object]") {
+    return "";
+  }
+
+  // Parse if JSON string
+  let parsed = field;
   if (typeof field === "string" && field.trim().startsWith("{")) {
     try {
-      field = JSON.parse(field);
-    } catch (e) {
+      parsed = JSON.parse(field);
+    } catch {
       // keep as string
     }
   }
 
-  if (typeof field === "object" && field !== null) {
-    const directValue =
-      field[language] ||
-      field[langCode || ""] ||
-      field["English"] ||
-      field["en"] ||
-      field["Russian"] ||
-      field["ru"] ||
-      field["German"] ||
-      field["de"] ||
-      field["Spanish"] ||
-      field["es"] ||
-      field["Kazakh"] ||
-      field["kk"] ||
-      field["Hebrew"] ||
-      field["he"] ||
-      field["Japanese"] ||
-      field["ja"] ||
-      field["Korean"] ||
-      field["ko"] ||
-      Object.values(field).find((value) => typeof value === "string" && value.trim());
-
-    if (directValue !== undefined && directValue !== null && String(directValue).trim()) {
-      return String(directValue);
+  if (typeof parsed === "object" && parsed !== null) {
+    if (isEnglish) {
+      const enKey = Object.keys(parsed).find((k) => {
+        const l = k.toLowerCase().trim();
+        return l === "english" || l === "en";
+      });
+      return enKey && parsed[enKey] ? String(parsed[enKey]).trim() : "";
+    } else {
+      const targetKey = Object.keys(parsed).find((k) => {
+        const l = k.toLowerCase().trim();
+        return l === normalizedLang.toLowerCase() || l === langCode.toLowerCase();
+      });
+      return targetKey && parsed[targetKey] ? String(parsed[targetKey]).trim() : "";
     }
   }
 
   if (typeof field === "string") {
-    return field;
+    const trimmed = field.trim();
+    if (trimmed === "[object Object]" || trimmed.startsWith("{")) {
+      return "";
+    }
+    // If a foreign language is chosen, but field is the default English text and no translation exists,
+    // do not show English on a foreign language page
+    if (!isEnglish && fullItem && field === fullItem.description) {
+      return "";
+    }
+    return trimmed;
   }
 
-  return String(field ?? "");
+  return "";
+}
+
+export function getLocalizedCategory(category: any, language: string, allCategories?: any[]): string {
+  if (!category || category === "[object Object]") return "";
+
+  const localizedDirect = getLocalizedField(category, language);
+  if (localizedDirect) {
+    return localizedDirect;
+  }
+
+  const normalizedLang = String(language || "English").trim();
+  const langCodeMap: Record<string, string> = {
+    Russian: "ru", German: "de", Spanish: "es", Kazakh: "kk", Hebrew: "he", Japanese: "ja", Korean: "ko", English: "en"
+  };
+  const isEnglish = (langCodeMap[normalizedLang] || "en") === "en";
+
+  if (isEnglish) {
+    const enCat = getLocalizedField(category, "English");
+    if (enCat) return enCat;
+  }
+
+  if (Array.isArray(allCategories) && allCategories.length > 0) {
+    const rawCatStr = typeof category === "object"
+      ? (category.English || category.en || Object.values(category)[0] || "")
+      : String(category).trim();
+
+    const matched = allCategories.find((c) => {
+      if (c.id === category || c.id === category?.id) return true;
+      const cEn = typeof c.name === "object"
+        ? (c.name.English || c.name.en || Object.values(c.name)[0] || "")
+        : String(c.name || "");
+      return String(cEn).trim().toLowerCase() === String(rawCatStr).trim().toLowerCase();
+    });
+
+    if (matched && matched.name) {
+      const matchLocalized = getLocalizedField(matched.name, language);
+      if (matchLocalized) return matchLocalized;
+    }
+  }
+
+  // If still not matched, extract English or chosen language from JSON/object if possible
+  if (typeof category === "string" && category.trim().startsWith("{")) {
+    try {
+      const p = JSON.parse(category);
+      if (isEnglish) {
+        return String(p.English || p.en || Object.values(p)[0] || "");
+      }
+      const matchKey = Object.keys(p).find((k) => k.toLowerCase() === normalizedLang.toLowerCase());
+      return matchKey ? String(p[matchKey]) : "";
+    } catch {}
+  }
+
+  // Never return raw JSON string with multiple languages
+  const str = String(category).trim();
+  if (str.startsWith("{") || str === "[object Object]") return "";
+  return str;
 }
 
 export interface PriceOption {
@@ -123,6 +197,7 @@ export interface MenuItem {
   rating: number;
   prepTime: string; // e.g. "15-20 min"
   category: CategoryType;
+  categoryId?: string;
   image: string;
   isVeg: boolean;
   spiceLevel: 0 | 1 | 2 | 3;

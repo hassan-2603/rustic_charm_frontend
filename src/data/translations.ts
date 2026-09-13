@@ -2,7 +2,7 @@ import { Language } from '../types';
 
 export const TRANSLATIONS: Record<Language, Record<string, string>> = {
   English: {
-    welcome: 'Exquisite European Gastronomy',
+    welcome: 'Exquisite European Cuisine',
     subtitle: 'Where old-world craftsmanship meets local, fresh ingredients.',
     startOrdering: 'Start Ordering',
     selectLanguage: 'Select Language',
@@ -39,6 +39,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: 'Served',
     statusCompletedDesc: 'Enjoy your handcrafted dining experience.',
     viewMenu: 'Return to Menu',
+    viewDetails: 'View Details',
     backToHome: 'Return Home',
     popularChoice: 'Popular Choice',
     spicyNone: 'Not Spicy',
@@ -52,7 +53,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Thank you 😊'
   },
   Russian: {
-    welcome: 'Изысканная европейская гастрономия',
+    welcome: 'Изысканная европейская кухня',
     subtitle: 'Где традиции старого света встречаются со свежими местными ингредиентами.',
     startOrdering: 'Начать заказ',
     selectLanguage: 'Выберите язык',
@@ -89,6 +90,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: 'Подано',
     statusCompletedDesc: 'Приятного аппетита и прекрасного вечера.',
     viewMenu: 'Вернуться в меню',
+    viewDetails: 'Подробнее',
     backToHome: 'На главную',
     popularChoice: 'Популярно',
     spicyNone: 'Не остро',
@@ -102,7 +104,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Спасибо 😊'
   },
   German: {
-    welcome: 'Exquisite europäische Gastronomie',
+    welcome: 'Exquisite europäische Küche',
     subtitle: 'Wo traditionelle Handwerkskunst auf frische, lokale Zutaten trifft.',
     startOrdering: 'Bestellung starten',
     selectLanguage: 'Sprache wählen',
@@ -139,6 +141,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: 'Serviert',
     statusCompletedDesc: 'Guten Appetit bei Ihrem handgefertigten Menü.',
     viewMenu: 'Zurück zur Karte',
+    viewDetails: 'Details ansehen',
     backToHome: 'Zur Startseite',
     popularChoice: 'Beliebt',
     spicyNone: 'Nicht scharf',
@@ -152,7 +155,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Vielen Dank 😊'
   },
   Spanish: {
-    welcome: 'Exquisita Gastronomía Europea',
+    welcome: 'Exquisita Cocina Europea',
     subtitle: 'Donde la tradición del viejo mundo se une con ingredientes frescos y locales.',
     startOrdering: 'Empezar Pedido',
     selectLanguage: 'Seleccionar Idioma',
@@ -187,8 +190,9 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusReady: 'Emplatado y Listo',
     statusReadyDesc: 'Su plato está perfectamente presentado y listo para salir.',
     statusCompleted: 'Servido',
-    statusCompletedDesc: 'Disfrute de su experiencia gastronómica.',
+    statusCompletedDesc: 'Disfrute de su experiencia culinaria.',
     viewMenu: 'Volver a la Carta',
+    viewDetails: 'Ver detalles',
     backToHome: 'Volver al Inicio',
     popularChoice: 'Muy Solicitado',
     spicyNone: 'No Picante',
@@ -202,7 +206,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: '¡Muchas gracias! 😊'
   },
   Kazakh: {
-    welcome: 'Керемет Еуропалық Гастрономия',
+    welcome: 'Керемет Еуропалық Асхана',
     subtitle: 'Ескі әлемнің шеберлігі мен жергілікті балғын өнімдер тоғысқан жер.',
     startOrdering: 'Тапсырыс беруді бастау',
     selectLanguage: 'Тілді таңдау',
@@ -239,6 +243,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: 'Ұсынылды',
     statusCompletedDesc: 'Асыңыз дәмді болсын!',
     viewMenu: 'Мәзірге оралу',
+    viewDetails: 'Толығырақ',
     backToHome: 'Басты бетке',
     popularChoice: 'Танымал таңдау',
     spicyNone: 'Ащы емес',
@@ -252,7 +257,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Рахмет 😊'
   },
   Hebrew: {
-    welcome: 'גסטרונומיה אירופאית משובחת',
+    welcome: 'מטבח אירופאי משובח',
     subtitle: 'מקום שבו אומנות העולם הישן פוגשת חומרי גלם מקומיים וטריים.',
     startOrdering: 'להתחיל בהזמנה',
     selectLanguage: 'בחר שפה',
@@ -289,6 +294,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: 'הוגש',
     statusCompletedDesc: 'בתיאבון! מקווים שתיהנו מהארוחה.',
     viewMenu: 'חזרה לתפריט',
+    viewDetails: 'פרטים נוספים',
     backToHome: 'חזרה לדף הבית',
     popularChoice: 'בחירה פופולרית',
     spicyNone: 'לא חריף',
@@ -302,7 +308,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'תודה רבה 😊'
   },
   Japanese: {
-    welcome: '洗練された欧州ガストロノミー',
+    welcome: '洗練された欧州料理',
     subtitle: '古き良き伝統技術と、厳選された新鮮な地元食材の調和。',
     startOrdering: 'ご注文を始める',
     selectLanguage: '言語を選択してください',
@@ -339,6 +345,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: '配膳済み',
     statusCompletedDesc: '極上の手作り料理をどうぞごゆっくりお楽しみください。',
     viewMenu: 'メニューへ戻る',
+    viewDetails: '詳細を見る',
     backToHome: 'ホームへ戻る',
     popularChoice: '人気メニュー',
     spicyNone: '辛さなし',
@@ -352,7 +359,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'ありがとうございます 😊'
   },
   Korean: {
-    welcome: '엄선된 유럽피안 가스트로노미',
+    welcome: '엄선된 유럽피안 다이닝',
     subtitle: '오래된 전통 기술과 신선한 지역 식재료가 어우러지는 곳.',
     startOrdering: '주문 시작하기',
     selectLanguage: '언어 선택',
@@ -389,6 +396,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     statusCompleted: '제공 완료',
     statusCompletedDesc: '정성이 깃든 고급 요리를 맛있게 즐겨보세요.',
     viewMenu: '메뉴판으로 가기',
+    viewDetails: '상세보기',
     backToHome: '홈으로 이동',
     popularChoice: '인기 메뉴',
     spicyNone: '안 매움',

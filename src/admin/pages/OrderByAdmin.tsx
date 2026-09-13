@@ -5,7 +5,7 @@ import { getWaiters } from "../services/waiterService";
 import { listenTables } from "../services/tableApi";
 import { createAdminOrder } from "../services/orderApi";
 import { printKOT } from "../services/printerService";
-import { getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
+import { getLocalizedCategory, getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
 import OrderDescriptionModal from "../../components/OrderDescriptionModal";
 
 type SelectedItem = {
@@ -40,7 +40,8 @@ export default function OrderByAdmin() {
   const areaTables = tables.filter((table) => !area || table.area === area);
   const filteredItems = menuItems.filter((item) => {
     const name = getLocalizedField(item.name, "English");
-    return `${name} ${item.category || ""}`.toLowerCase().includes(search.toLowerCase());
+    const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+    return `${name} ${category}`.toLowerCase().includes(search.toLowerCase());
   });
 
   const total = selected.reduce(
@@ -186,6 +187,8 @@ export default function OrderByAdmin() {
             {filteredItems.map((item) => {
               const options = getMenuPriceOptions(item);
               const name = getLocalizedField(item.name, "English");
+              const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+              const desc = getLocalizedField(item.description, "English", item);
 
               return (
                 <div
@@ -194,7 +197,8 @@ export default function OrderByAdmin() {
                 >
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
-                    <div className="text-sm text-gray-500">{item.category || ""}</div>
+                    {category && <div className="text-xs text-gray-500 font-medium">{category}</div>}
+                    {desc && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{desc}</div>}
                   </div>
 
                   {options.length > 1 ? (

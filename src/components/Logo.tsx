@@ -107,9 +107,6 @@ export default function Logo({ size = 'md', variant = 'centered', className = ''
           <span className={`font-elegant font-bold text-charcoal uppercase leading-none ${titleSizes[size]}`} id="logo-text-title">
             Rustic Charm
           </span>
-          <span className={`uppercase font-semibold text-gold mt-1 leading-none ${subtitleSizes[size]}`} id="logo-text-sub">
-            Gastronomy
-          </span>
         </div>
       </div>
     );

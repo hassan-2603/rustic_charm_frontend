@@ -3,7 +3,7 @@ import { Search, X, Plus, Minus, ChevronDown, ChevronUp, FileText } from "lucide
 import { getMenuItems } from "../../services/customerApi";
 import { addOrderItems } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
-import { getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
+import { getLocalizedCategory, getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
 import OrderDescriptionModal from "../../components/OrderDescriptionModal";
 
 type Props = {
@@ -45,7 +45,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       const name = getLocalizedField(item.name, "English");
-      return `${name} ${item.category || ""}`.toLowerCase().includes(search.toLowerCase());
+      const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+      return `${name} ${category}`.toLowerCase().includes(search.toLowerCase());
     });
   }, [menuItems, search]);
 
@@ -90,7 +91,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
           quantity,
           price: selectedPriceOption?.amount ?? item.price ?? 0,
           categoryId: item.categoryId || (item as any).category_id || "",
-          category: (item as any).category || (item as any).category_name || "",
+          category: getLocalizedCategory((item as any).category, "English") || getLocalizedField((item as any).category, "English") || (item as any).category_name || "",
         };
       });
       const updated = await addOrderItems(order.id, itemsPayload, description);
@@ -136,6 +137,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
           {filteredItems.map((item) => {
             const options = getMenuPriceOptions(item);
             const name = getLocalizedField(item.name, "English");
+            const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+            const desc = getLocalizedField(item.description, "English", item);
 
             if (options.length > 1) {
               return (
@@ -145,7 +148,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                 >
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
-                    <div className="text-sm text-gray-500">{item.category || ""}</div>
+                    {category && <div className="text-sm text-gray-500">{category}</div>}
+                    {desc && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{desc}</div>}
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-gray-100">
@@ -230,7 +234,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
               >
                 <div>
                   <div className="font-semibold">{name}</div>
-                  <div className="text-sm text-gray-500">{item.category || ""}</div>
+                  {category && <div className="text-sm text-gray-500">{category}</div>}
+                  {desc && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{desc}</div>}
                   <div className="mt-1 font-semibold">₹{singleOpt?.amount || item.price || 0}</div>
                 </div>
 

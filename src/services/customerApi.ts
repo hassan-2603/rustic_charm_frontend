@@ -367,3 +367,14 @@ export function listenToSessionOrders(
     }
   };
 }
+
+export async function submitMenuItemFeedback(data: {
+  menuItemId?: string;
+  menuItemName: string;
+  feedback: string;
+}) {
+  return await requestJson(`${API_BASE}/feedback`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

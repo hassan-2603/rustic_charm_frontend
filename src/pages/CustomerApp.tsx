@@ -1,6 +1,6 @@
 import { useLanguage } from "../context/LanguageContext";
 import { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingBag, Globe, Compass, Star, Clock, UtensilsCrossed, Check, Leaf, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ShoppingBag, Globe, Compass, Star, Clock, UtensilsCrossed, Check, Leaf, Tag, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import {
   MenuItem,
   CartItem,
@@ -11,6 +11,7 @@ import {
   OrderStatus,
   Table,
   getLocalizedField,
+  getLocalizedCategory,
   getMenuPriceOptions,
   getMenuPriceLabel,
   Offer
@@ -37,6 +38,7 @@ import Header from '../components/Header';
 import { DEFAULT_TABLE_AREAS, getTableDisplayName, resolveTableFromReference } from '../utils/tableUtils';
 import FoodCard from '../components/FoodCard';
 import FoodDetailsModal from '../components/FoodDetailsModal';
+import FeedbackModal from '../components/FeedbackModal';
 import CartDrawer from '../components/CartDrawer';
 import OrderTimeline from '../components/OrderTimeline';
 import CallWaiterButton from '../components/CallWaiterButton';
@@ -82,6 +84,7 @@ export default function CustomerApp() {
   });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [feedbackItem, setFeedbackItem] = useState<MenuItem | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'All'>('All');
@@ -815,23 +818,37 @@ export default function CustomerApp() {
     ).length
   );
 
-  const getCategoryString = (val: any): string => {
+  const getCategoryEnglishName = (val: any): string => {
     if (!val) return "";
-    const localized = getLocalizedField(val, language);
-    if (localized) return localized;
-    if (typeof val === "string") return val;
-    return String(val);
+    if (typeof val === "object") {
+      return String(val.English || val.en || Object.values(val)[0] || "").trim();
+    }
+    const str = String(val).trim();
+    if (str.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(str);
+        if (typeof parsed === "object" && parsed !== null) {
+          return String(parsed.English || parsed.en || Object.values(parsed)[0] || "").trim();
+        }
+      } catch {}
+    }
+    return str;
+  };
+
+  const getCategoryString = (val: any): string => {
+    return getLocalizedCategory(val, language, categories);
   };
 
   const filteredMenuItems = menuItems.filter((item) => {
     const query = searchQuery.toLowerCase();
-    const selCatStr = getCategoryString(selectedCategory).trim().toLowerCase();
-    const itemCatStr = getCategoryString(item.category).trim().toLowerCase();
+    const selCatEn = getCategoryEnglishName(selectedCategory).toLowerCase();
+    const itemCatEn = getCategoryEnglishName(item.category).toLowerCase();
 
     const matchesCategory =
       selectedCategory === "All" ||
-      selCatStr === "all" ||
-      itemCatStr === selCatStr;
+      selCatEn === "all" ||
+      itemCatEn === selCatEn ||
+      (item.categoryId && (item.categoryId === selectedCategory || item.categoryId === (selectedCategory as any)?.id));
 
     const nameStr = getLocalizedField(item.name, language, item);
     const descStr = getLocalizedField(item.description, language, item);
@@ -1114,7 +1131,7 @@ export default function CustomerApp() {
                         {[
                           { id: 'All', name: t.all, rawName: 'All' },
                           ...categories.map(cat => {
-                            const raw = getCategoryString(cat.name);
+                            const raw = getCategoryEnglishName(cat.name);
                             return {
                               id: cat.id,
                               name: getLocalizedField(cat.name, language, cat) || raw,
@@ -1122,7 +1139,7 @@ export default function CustomerApp() {
                             };
                           })
                         ].map((cat) => {
-                          const isSelected = getCategoryString(selectedCategory).trim().toLowerCase() === getCategoryString(cat.rawName).trim().toLowerCase();
+                          const isSelected = getCategoryEnglishName(selectedCategory).trim().toLowerCase() === getCategoryEnglishName(cat.rawName).trim().toLowerCase();
 
                           return (
                             <button
@@ -1162,7 +1179,7 @@ export default function CustomerApp() {
                       id="veg-filter-btn"
                     >
                       <Leaf size={16} />
-                      <span>Veg</span>
+                      <span>{t.veg || 'Veg'}</span>
                     </button>
                     <button
                       onClick={() => setVegFilter(vegFilter === 'non-veg' ? null : 'non-veg')}
@@ -1172,7 +1189,7 @@ export default function CustomerApp() {
                         }`}
                       id="non-veg-filter-btn"
                     >
-                      <span>Non Veg</span>
+                      <span>{t.nonVeg || 'Non Veg'}</span>
                     </button>
                   </div>
 
@@ -1210,15 +1227,28 @@ export default function CustomerApp() {
 
                                 <div className="absolute top-3 left-3">
                                   {item.isVeg ? (
-                                    <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
-                                      Veg
+                                    <span className="bg-green-600 text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+                                      {t.veg || 'Veg'}
                                     </span>
                                   ) : (
-                                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full">
-                                      Non Veg
+                                    <span className="bg-red-600 text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+                                      {t.nonVeg || 'Non Veg'}
                                     </span>
                                   )}
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFeedbackItem(item);
+                                  }}
+                                  className="absolute top-3 right-3 bg-white/95 hover:bg-white text-gray-700 hover:text-amber-700 border border-gray-200 px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer z-10"
+                                  title="Give feedback for this dish"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Feedback</span>
+                                </button>
 
                                 {!item.isAvailable && (
                                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -1241,19 +1271,42 @@ export default function CustomerApp() {
                                   </span>
                                 </div>
 
-                                <p className="text-sm text-gray-500 mt-1">
-                                  {getCategoryString(item.category)}
-                                </p>
+                                {getCategoryString(item.category) ? (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {getCategoryString(item.category)}
+                                  </p>
+                                ) : null}
 
-                                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                                  {itemLocalizedDesc}
-                                </p>
+                                {itemLocalizedDesc ? (
+                                  <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                                    {itemLocalizedDesc}
+                                  </p>
+                                ) : null}
 
-                                <button
-                                  className="mt-4 w-full bg-[#556B2F] text-white py-2 rounded-lg hover:bg-[#445522] transition"
-                                >
-                                  View Details
-                                </button>
+                                <div className="mt-4 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedItem(item);
+                                    }}
+                                    className="flex-1 bg-[#556B2F] text-white py-2 rounded-lg hover:bg-[#445522] transition text-sm font-medium"
+                                  >
+                                    {t.viewDetails || 'View Details'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFeedbackItem(item);
+                                    }}
+                                    className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 px-3 py-2 rounded-lg transition text-xs font-semibold flex items-center gap-1.5 shadow-2xs active:scale-95 whitespace-nowrap cursor-pointer"
+                                    title="Give feedback for this dish"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Feedback</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -1320,6 +1373,17 @@ export default function CustomerApp() {
             language={language}
             onClose={() => setSelectedItem(null)}
             onAddToCart={(item, qty, inst) => handleAddToCart(item, qty, inst)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* OVERLAY MODAL: ITEM FEEDBACK */}
+      <AnimatePresence>
+        {feedbackItem && (
+          <FeedbackModal
+            item={feedbackItem}
+            language={language}
+            onClose={() => setFeedbackItem(null)}
           />
         )}
       </AnimatePresence>

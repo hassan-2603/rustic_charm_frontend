@@ -11,4 +11,6 @@ export {
   cancelOrder,
   updateOrderSplits,
   getOrderSplits,
+  getPendingFeedbacks,
+  markFeedbacksDownloaded,
 } from "./orderApi";

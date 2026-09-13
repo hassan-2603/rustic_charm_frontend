@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { getMenuItems } from "../../services/customerApi";
 import { listenTables, createCaptainOrder } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
-import { getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
+import { getLocalizedField, getLocalizedCategory, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
 import OrderDescriptionModal from "../../components/OrderDescriptionModal";
 
 type SelectedItem = {
@@ -39,7 +39,8 @@ export default function OrderByCaptain() {
   const areaTables = tables.filter((table) => !area || table.area === area);
   const filteredItems = menuItems.filter((item) => {
     const name = getLocalizedField(item.name, "English");
-    return `${name} ${item.category || ""}`.toLowerCase().includes(search.toLowerCase());
+    const cat = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+    return `${name} ${cat}`.toLowerCase().includes(search.toLowerCase());
   });
 
   const total = selected.reduce(
@@ -183,7 +184,12 @@ export default function OrderByCaptain() {
                 >
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
-                    <div className="text-sm text-gray-500">{item.category || ""}</div>
+                    <div className="text-xs text-gray-500 font-medium">{getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English")}</div>
+                    {item.description && getLocalizedField(item.description, "English", item) && (
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                        {getLocalizedField(item.description, "English", item)}
+                      </p>
+                    )}
                   </div>
 
                   {options.length > 1 ? (

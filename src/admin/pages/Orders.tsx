@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { exportOrdersExcel } from "../services/excelService";
+import { exportOrdersExcel, exportFeedbackExcel } from "../services/excelService";
 import SectionHeader from "../components/SectionHeader";
 import OrderFilters from "../components/OrderFilters";
 import OrderCard from "../components/OrderCard";
 import OrderDetailsDrawer from "../components/OrderDetailsDrawer";
 import EmptyOrders from "../components/EmptyOrders";
 
-import { listenOrders, getReportOrders, deleteAllOrders } from "../services/orderService";
+import { listenOrders, getReportOrders, deleteAllOrders, getPendingFeedbacks, markFeedbacksDownloaded } from "../services/orderService";
 
 function parseOrderDate(value: any): Date | null {
   if (!value) return null;
@@ -127,6 +127,7 @@ export default function Orders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [downloading, setDownloading] = useState(false);
+  const [downloadingFeedback, setDownloadingFeedback] = useState(false);
 
   // Active unarchived orders on screen
   useEffect(() => {
@@ -312,6 +313,29 @@ export default function Orders() {
     }
   }
 
+  async function handleDownloadFeedbackReport() {
+    setDownloadingFeedback(true);
+    try {
+      const feedbacks = await getPendingFeedbacks();
+      if (!feedbacks || feedbacks.length === 0) {
+        alert("No new feedback available to download. All previous feedback has already been downloaded.");
+        return;
+      }
+
+      exportFeedbackExcel(feedbacks);
+
+      const ids = feedbacks.map((f: any) => f.id).filter(Boolean);
+      await markFeedbacksDownloaded(ids);
+
+      alert(`Downloaded ${feedbacks.length} feedback item(s) successfully. Subsequent downloads will only contain new feedback.`);
+    } catch (err) {
+      console.error("Error downloading feedback report:", err);
+      alert("Failed to download feedback report. Please check connection.");
+    } finally {
+      setDownloadingFeedback(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex gap-3 flex-wrap items-center">
@@ -349,6 +373,15 @@ export default function Orders() {
           title="Download full month report (1st to end)"
         >
           <span>🗓️</span> Download Monthly Excel
+        </button>
+
+        <button
+          onClick={handleDownloadFeedbackReport}
+          disabled={downloadingFeedback}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title="Download customer feedback Excel report (starts fresh after each download)"
+        >
+          <span>💬</span> {downloadingFeedback ? "Downloading..." : "Download Feedback Excel"}
         </button>
 
         <button

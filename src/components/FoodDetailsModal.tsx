@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Minus, Plus, Clock, Star, Flame } from 'lucide-react';
-import { MenuItem, Language, getLocalizedField, getMenuPriceOptions } from '../types';
+import { MenuItem, Language, getLocalizedField, getLocalizedCategory, getMenuPriceOptions } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { motion } from 'motion/react';
 
@@ -90,7 +90,10 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
             <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 via-transparent to-transparent" />
             <div className="absolute bottom-6 left-6 right-6 text-white">
               <span className="bg-gold text-charcoal text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full mb-2.5 inline-block shadow-sm">
-                {item.category}
+                {getLocalizedCategory(item.category, language)}
+              </span>
+              <span className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full mb-2.5 inline-block shadow-sm ml-2 ${item.isVeg ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                {item.isVeg ? (t.veg || "Veg") : (t.nonVeg || "Non Veg")}
               </span>
               <h2 className="font-elegant font-bold text-2xl md:text-3xl tracking-wide drop-shadow-xs">
                 {localizedName}
@@ -149,11 +152,13 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
             )}
 
             {/* Description */}
-            <div className="space-y-2">
-              <p className="text-sm md:text-base text-charcoal/90 leading-relaxed font-light">
-                {localizedDesc}
-              </p>
-            </div>
+            {localizedDesc ? (
+              <div className="space-y-2">
+                <p className="text-sm md:text-base text-charcoal/90 leading-relaxed font-light">
+                  {localizedDesc}
+                </p>
+              </div>
+            ) : null}
 
             {/* Ingredients */}
             <div className="space-y-3">

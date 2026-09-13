@@ -133,3 +133,21 @@ export async function updateOrderSplits(orderId: string, splits: any[]) {
 export async function getOrderSplits(orderId: string) {
   return await requestAdminJson(`${BASE}/${orderId}/splits`);
 }
+
+export async function getPendingFeedbacks(): Promise<Array<{ id: string; menuItemId?: string; menuItemName: string; feedback: string; createdAt: string }>> {
+  try {
+    const data = await requestAdminJson("/feedbacks");
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Error loading feedbacks:", err);
+    return [];
+  }
+}
+
+export async function markFeedbacksDownloaded(ids?: string[]) {
+  return await requestAdminJson("/feedbacks/mark-downloaded", {
+    method: "POST",
+    body: JSON.stringify({ ids: ids || [] }),
+  });
+}
+

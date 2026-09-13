@@ -207,7 +207,7 @@ export async function translateEntireMenu(onProgress?: ProgressCallback): Promis
       };
 
       const updatedTranslations: Record<string, { name: string; description: string }> = {
-        ...existingTranslations,
+        ...(existingTranslations as any),
       };
 
       for (const lang of SUPPORTED_LANGUAGES) {
