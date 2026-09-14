@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { listenTables, listenOrders } from "../services/waiterService";
 import { DEFAULT_TABLE_AREAS } from "../../utils/tableUtils";
 import { User } from "lucide-react";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 export default function Tables() {
     const [tables, setTables] = useState<any[]>([]);
@@ -78,11 +79,20 @@ export default function Tables() {
                                             <span className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isOccupied ? 'bg-yellow-200' : 'bg-gray-100'}`}>
                                                 {table.status}
                                             </span>
-                                            {isOccupied && (activeOrder?.waiterName || activeOrder?.waiterId) && (
-                                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md mt-1.5 truncate max-w-full shadow-2xs">
-                                                    <User size={10} className="text-amber-800 shrink-0" />
-                                                    <span className="truncate">{activeOrder.waiterName || activeOrder.waiterId}</span>
-                                                </span>
+                                            {isOccupied && activeOrder && (
+                                                <div className="flex flex-col items-center gap-1 mt-1.5 max-w-full">
+                                                    {(activeOrder.waiterName || activeOrder.waiterId) && (
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md truncate max-w-full shadow-2xs">
+                                                            <User size={10} className="text-amber-800 shrink-0" />
+                                                            <span className="truncate">{activeOrder.waiterName || activeOrder.waiterId}</span>
+                                                        </span>
+                                                    )}
+                                                    <OrderTimerBadge
+                                                        order={activeOrder}
+                                                        variant="compact"
+                                                        className="bg-amber-100/90 text-amber-900 border border-amber-300/80 px-1.5 py-0.5 rounded text-[11px]"
+                                                    />
+                                                </div>
                                             )}
                                         </Link>
                                     );

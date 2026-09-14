@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import StatusBadge from "./StatusBadge";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 type Props = {
   order: any;
@@ -19,7 +20,7 @@ export default function OrderCard({
 }: Props) {
   const created =
     order.createdAt?.toDate?.() ||
-    new Date();
+    (order.createdAt ? new Date(order.createdAt) : new Date());
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
@@ -28,7 +29,7 @@ export default function OrderCard({
 
         {/* Top */}
 
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-3">
 
           <div>
 
@@ -53,7 +54,10 @@ export default function OrderCard({
 
           </div>
 
-          <StatusBadge status={order.status} />
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+            <OrderTimerBadge order={order} showSourceLabel />
+            <StatusBadge status={order.status} />
+          </div>
 
         </div>
 
@@ -113,10 +117,14 @@ export default function OrderCard({
             <div>
 
               <p className="text-xs text-gray-500">
-                Time
+                Elapsed
               </p>
 
-              <p className="font-semibold">
+              <div>
+                <OrderTimerBadge order={order} variant="compact" className="text-sm font-semibold" />
+              </div>
+
+              <p className="text-[11px] text-gray-400">
                 {created.toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",

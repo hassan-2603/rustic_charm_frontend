@@ -63,7 +63,22 @@ export default function Dashboard() {
   }, []);
 
   async function handleAcceptOrder(order: any) {
-    await acceptOrder(order.id, waiter);
+    const currentWaiter = waiter?.name ? waiter : JSON.parse(localStorage.getItem("waiter") || "{}");
+    const updated = await acceptOrder(order.id, currentWaiter);
+    setOrders((current) =>
+      current.map((o) =>
+        o.id === order.id
+          ? {
+              ...o,
+              status: "Accepted",
+              waiterId: currentWaiter?.id,
+              waiterName: currentWaiter?.name,
+              acceptedAt: new Date().toISOString(),
+              ...(updated && typeof updated === "object" ? updated : {}),
+            }
+          : o
+      )
+    );
   }
 
   async function handleRejectOrder(order: any) {

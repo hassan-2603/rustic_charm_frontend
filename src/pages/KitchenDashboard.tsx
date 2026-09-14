@@ -2,6 +2,7 @@ import { ChefHat, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { listenKitchenOrders, updateOrderStatus } from "../services/kitchenService";
 import notificationSound from "../assets/sounds/notification.mp3";
+import OrderTimerBadge from "../components/OrderTimerBadge";
 
 interface KitchenDashboardProps {
   onLogout?: () => void;
@@ -253,9 +254,7 @@ export default function KitchenDashboard({ onLogout }: KitchenDashboardProps = {
                         {order.tableLabel || order.tableReference || `Table ${order.tableNumber || "--"}`}
                       </p>
 
-                      <span className="text-sm text-gray-500">
-                        ⏱ {getElapsedTime(order.createdAt)}
-                      </span>
+                      <OrderTimerBadge order={order} showSourceLabel />
 
                     </div>
 

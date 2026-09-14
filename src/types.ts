@@ -310,8 +310,17 @@ export interface Order {
   total: number;
   status: OrderStatus;
   tableNumber: string;
+  tableId?: string;
+  tableLabel?: string;
+  tableReference?: string;
+  orderNumber?: string | number;
   language: Language;
   createdAt: string;
+  acceptedAt?: string;
+  servedAt?: string;
+  completedAt?: string;
+  waiterId?: string;
+  waiterName?: string;
   customerName?: string;
   customerPhone?: string;
   discountType?: 'percent' | 'flat';

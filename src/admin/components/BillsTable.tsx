@@ -3,6 +3,7 @@ import { Printer } from "lucide-react";
 import { printBill, retryPrint } from "../services/printerService";
 import { openReceiptPreview } from "../../utils/receiptPreview";
 import type { PrintJob } from "../../services/printApi";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 type Props = {
   orders: any[];
@@ -83,11 +84,11 @@ export default function BillsTable({ orders }: Props) {
               >
 
                 <td className="p-5">
-                  {order.orderNumber}
+                  #{order.orderNumber}
                 </td>
 
                 <td className="p-5">
-                  {order.waiterName}
+                  {order.waiterName || "--"}
                 </td>
 
                 <td className="p-5 font-semibold">
@@ -95,7 +96,10 @@ export default function BillsTable({ orders }: Props) {
                 </td>
 
                 <td className="p-5">
-                  {order.status}
+                  <div>{order.status}</div>
+                  <div className="mt-0.5">
+                    <OrderTimerBadge order={order} variant="compact" />
+                  </div>
                 </td>
 
                 <td className="p-5">

@@ -153,6 +153,7 @@ export default function CustomerApp() {
     }
   });
   const [sessionOrders, setSessionOrders] = useState<any[]>([]);
+  const [currentWaiterName, setCurrentWaiterName] = useState<string | null>(null);
   const sessionOrdersUnsubscribeRef = useRef<(() => void) | null>(null);
 
   const cleanupSessionListener = () => {
@@ -508,6 +509,7 @@ export default function CustomerApp() {
     setCurrentOrderId(latestOrder.id);
     setCurrentOrderNumber(latestOrder.orderNumber);
     setCurrentOrderStatus(latestOrder.status);
+    setCurrentWaiterName(latestOrder.waiterName || null);
   }, [sessionOrders]);
   // useEffect(() => {
   //   
@@ -591,6 +593,7 @@ export default function CustomerApp() {
             setCurrentOrderId(latest.id);
             setCurrentOrderNumber(latest.orderNumber);
             setCurrentOrderStatus(latest.status);
+            setCurrentWaiterName(latest.waiterName || null);
             persistSession({
               currentOrderId: latest.id,
               currentOrderNumber: latest.orderNumber,
@@ -1342,6 +1345,7 @@ export default function CustomerApp() {
                 currentOrderNumber={currentOrderNumber}
                 currentOrderStatus={currentOrderStatus}
                 sessionOrders={sessionOrders}
+                waiterName={currentWaiterName}
                 onBackToMenu={handleGoToMenu}
                 onResetOrder={handleGoToHome}
                 onRequestBill={handleRequestBill}

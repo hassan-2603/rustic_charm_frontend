@@ -3,6 +3,7 @@ import { Printer } from "lucide-react";
 import { listenOrders } from "../services/orderService";
 import { printKOT, retryPrint } from "../services/printerService";
 import type { PrintJob } from "../../services/printApi";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 type KotState = { printing: boolean; result: "success" | "failed" | null; message?: string };
 
@@ -53,6 +54,8 @@ export default function KOT() {
                   <span className="text-xs font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                     Waiter: {order.waiterName || order.waiterId || "Self-ordered"}
                   </span>
+                  <span className="text-gray-300">•</span>
+                  <OrderTimerBadge order={order} showSourceLabel />
                 </div>
               </div>
               <div className="flex flex-col items-stretch sm:items-end gap-1">

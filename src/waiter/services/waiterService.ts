@@ -85,13 +85,21 @@ export async function createCaptainOrder(order: {
   });
 }
 
-export async function acceptOrder(orderId: string, waiter: any) {
+export async function acceptOrder(orderId: string, waiterParam?: any) {
+  let waiter = waiterParam;
+  if (!waiter || !waiter.id) {
+    try {
+      waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
+    } catch {}
+  }
+  const waiterId = waiter?.id || (typeof waiter === "string" ? waiter : "");
+  const waiterName = waiter?.name || waiter?.waiterName || waiterId || "";
   return requestAdminJson(`/orders/${orderId}`, {
     method: "PUT",
     body: JSON.stringify({
       status: "Accepted",
-      waiterId: waiter.id,
-      waiterName: waiter.name,
+      waiterId,
+      waiterName,
       acceptedAt: new Date().toISOString(),
     }),
   });

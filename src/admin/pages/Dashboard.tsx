@@ -4,6 +4,8 @@ import { listenToOrders } from "../services/orderApi";
 import { listenToTables } from "../services/tableApi";
 import { listenToWaiterCalls } from "../services/waiterApi";
 import { getCaptainName, saveCaptainName } from "../services/captainService";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
+import { User } from "lucide-react";
 
 
 export default function Dashboard() {
@@ -122,7 +124,11 @@ return () => {
 
           <th className="text-left p-4">Table</th>
 
+          <th className="text-left p-4">Waiter</th>
+
           <th className="text-left p-4">Status</th>
+
+          <th className="text-left p-4">Timer</th>
 
           <th className="text-left p-4">Total</th>
 
@@ -133,7 +139,7 @@ return () => {
       <tbody>
 
         {orders
-          .filter(o => o.status !== "Completed")
+          .filter(o => o.status !== "Completed" && o.status !== "Cancelled" && o.status !== "Rejected")
           .map(order => (
 
           <tr
@@ -150,8 +156,15 @@ return () => {
             </td>
 
             <td className="p-4">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                <User size={12} className="text-amber-700" />
+                <span>{order.waiterName || order.waiterId || "Self-ordered"}</span>
+              </span>
+            </td>
 
-              <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700">
+            <td className="p-4">
+
+              <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium text-xs">
 
                 {order.status}
 
@@ -160,6 +173,10 @@ return () => {
             </td>
 
             <td className="p-4">
+              <OrderTimerBadge order={order} showSourceLabel />
+            </td>
+
+            <td className="p-4 font-semibold">
               ₹{order.total}
             </td>
 

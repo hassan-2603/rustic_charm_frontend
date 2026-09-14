@@ -1,4 +1,5 @@
 import { Percent, FileText, UtensilsCrossed, User } from "lucide-react";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 export type PrintButtonState = {
   /** true only while the job is genuinely in flight (PENDING/PROCESSING) */
@@ -118,17 +119,21 @@ export default function OrderCard({
             </span>
           </div>
 
-          <p className="text-gray-500 mt-0.5">
-            Order #{order.orderNumber}
-          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-gray-500 text-sm">
+              Order #{order.orderNumber}
+            </p>
+            <span className="text-gray-300">•</span>
+            <OrderTimerBadge order={order} showSourceLabel />
+          </div>
 
         </div>
 
-        <span className="px-4 py-2 rounded-full bg-yellow-100 text-yellow-700 font-semibold">
-
-          {order.status}
-
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="px-4 py-2 rounded-full bg-yellow-100 text-yellow-700 font-semibold">
+            {order.status}
+          </span>
+        </div>
 
       </div>
 

@@ -27,6 +27,7 @@ import { buildPreviewTexts, openReceiptPreview } from "../../utils/receiptPrevie
 import { updateOrderItemPrices } from "../services/orderApi";
 
 import StatusBadge from "./StatusBadge";
+import OrderTimerBadge from "../../components/OrderTimerBadge";
 
 type Props = {
   open: boolean;
@@ -392,6 +393,8 @@ export default function OrderDetailsDrawer({
                 <User size={13} className="text-amber-700" />
                 <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
               </span>
+              <span className="text-gray-300">•</span>
+              <OrderTimerBadge order={order} showSourceLabel />
             </div>
 
           </div>
@@ -666,16 +669,23 @@ export default function OrderDetailsDrawer({
 
               <div className="flex items-center gap-3">
 
-                <Clock size={18} />
+                <Clock size={18} className="text-olive" />
 
                 <div>
 
                   <p className="text-sm text-gray-500">
-                    Created
+                    Order Timer & Timing
                   </p>
 
-                  <p className="font-medium">
-                    {created.toLocaleString()}
+                  <div className="mt-1">
+                    <OrderTimerBadge order={order} showSourceLabel />
+                  </div>
+
+                  <p className="text-xs text-gray-400 mt-1">
+                    Created: {created.toLocaleString()}
+                    {order.acceptedAt && (
+                      <> • Accepted: {new Date(order.acceptedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+                    )}
                   </p>
 
                 </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, XCircle, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, RefreshCw, XCircle, Check, Sparkles, User } from 'lucide-react';
 import { OrderStatus, Language } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { motion, AnimatePresence } from 'motion/react';
+import OrderTimerBadge from './OrderTimerBadge';
 
 interface OrderTimelineProps {
   language: Language;
@@ -14,6 +15,7 @@ interface OrderTimelineProps {
   onResetOrder: () => void;
   onRequestBill: () => void;
   onCallWaiter?: () => Promise<void>;
+  waiterName?: string | null;
 }
 
 export default function OrderTimeline({
@@ -26,6 +28,7 @@ export default function OrderTimeline({
   onResetOrder,
   onRequestBill,
   onCallWaiter,
+  waiterName,
 }: OrderTimelineProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS['English'];
   const [isCalling, setIsCalling] = useState(false);
@@ -125,7 +128,7 @@ export default function OrderTimeline({
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-olive/40 via-gold to-olive/40" />
 
         {/* Top Info Tags */}
-        <div className="flex items-center justify-center gap-2 mb-6">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
           <span className="text-olive text-[11px] font-extrabold uppercase tracking-[0.2em] bg-olive/10 px-3.5 py-1 rounded-full border border-olive/20 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-olive" />
             <span>Order Confirmed</span>
@@ -133,6 +136,16 @@ export default function OrderTimeline({
           {currentTable && (
             <span className="bg-gold/15 text-amber-900 font-bold px-3 py-1 rounded-full text-[11px] tracking-wide uppercase border border-gold/30">
               {t.table} {currentTable}
+            </span>
+          )}
+          {waiterName ? (
+            <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 font-bold px-3 py-1 rounded-full text-[11px] tracking-wide border border-amber-200 shadow-2xs">
+              <User size={13} className="text-amber-700 shrink-0" />
+              <span>{t.assignedWaiter || "Your Waiter"}: {waiterName}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100/90 px-2.5 py-0.5 rounded-full border border-gray-200">
+              <span>Waiting for server</span>
             </span>
           )}
         </div>
@@ -205,21 +218,27 @@ export default function OrderTimeline({
                   <p className="font-semibold text-charcoal">
                     {order.orderNumber || order.id?.slice(0, 8)}
                   </p>
-                  <p className="text-[11px] text-soft-gray">
-                    {order.status || "In Progress"}
+                  <p className="text-[11px] text-soft-gray flex flex-wrap items-center gap-1">
+                    <span>{order.status || "In Progress"}</span>
+                    {order.waiterName && (
+                      <span className="text-amber-800 font-semibold">• Waiter: {order.waiterName}</span>
+                    )}
                   </p>
                 </div>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    order.status === "Served"
-                      ? "bg-green-100 text-green-700"
-                      : order.status === "Preparing"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-olive/10 text-olive"
-                  }`}
-                >
-                  {order.status || "Pending"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <OrderTimerBadge order={order} variant="compact" />
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      order.status === "Served"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "Preparing"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-olive/10 text-olive"
+                    }`}
+                  >
+                    {order.status || "Pending"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
