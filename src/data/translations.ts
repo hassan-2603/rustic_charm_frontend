@@ -2,7 +2,7 @@ import { Language } from '../types';
 
 export const TRANSLATIONS: Record<Language, Record<string, string>> = {
   English: {
-    welcome: 'Exquisite European Cuisine',
+    welcome: 'Restro bar & cafe',
     subtitle: 'Where old-world craftsmanship meets local, fresh ingredients.',
     startOrdering: 'Start Ordering',
     selectLanguage: 'Select Language',
@@ -54,7 +54,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Thank you 😊'
   },
   Russian: {
-    welcome: 'Изысканная европейская кухня',
+    welcome: 'Рестро-бар и кафе',
     subtitle: 'Где традиции старого света встречаются со свежими местными ингредиентами.',
     startOrdering: 'Начать заказ',
     selectLanguage: 'Выберите язык',
@@ -106,7 +106,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Спасибо 😊'
   },
   German: {
-    welcome: 'Exquisite europäische Küche',
+    welcome: 'Restro-Bar & Café',
     subtitle: 'Wo traditionelle Handwerkskunst auf frische, lokale Zutaten trifft.',
     startOrdering: 'Bestellung starten',
     selectLanguage: 'Sprache wählen',
@@ -158,7 +158,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Vielen Dank 😊'
   },
   Spanish: {
-    welcome: 'Exquisita Cocina Europea',
+    welcome: 'Restro bar y café',
     subtitle: 'Donde la tradición del viejo mundo se une con ingredientes frescos y locales.',
     startOrdering: 'Empezar Pedido',
     selectLanguage: 'Seleccionar Idioma',
@@ -210,7 +210,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: '¡Muchas gracias! 😊'
   },
   Kazakh: {
-    welcome: 'Керемет Еуропалық Асхана',
+    welcome: 'Рестро-бар және кафе',
     subtitle: 'Ескі әлемнің шеберлігі мен жергілікті балғын өнімдер тоғысқан жер.',
     startOrdering: 'Тапсырыс беруді бастау',
     selectLanguage: 'Тілді таңдау',
@@ -262,7 +262,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'Рахмет 😊'
   },
   Hebrew: {
-    welcome: 'מטבח אירופאי משובח',
+    welcome: 'רסטרו בר וקפה',
     subtitle: 'מקום שבו אומנות העולם הישן פוגשת חומרי גלם מקומיים וטריים.',
     startOrdering: 'להתחיל בהזמנה',
     selectLanguage: 'בחר שפה',
@@ -314,7 +314,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'תודה רבה 😊'
   },
   Japanese: {
-    welcome: '洗練された欧州料理',
+    welcome: 'レストロバー＆カフェ',
     subtitle: '古き良き伝統技術と、厳選された新鮮な地元食材の調和。',
     startOrdering: 'ご注文を始める',
     selectLanguage: '言語を選択してください',
@@ -366,7 +366,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     thankYouSmile: 'ありがとうございます 😊'
   },
   Korean: {
-    welcome: '엄선된 유럽피안 다이닝',
+    welcome: '레스트로 바 & 카페',
     subtitle: '오래된 전통 기술과 신선한 지역 식재료가 어우러지는 곳.',
     startOrdering: '주문 시작하기',
     selectLanguage: '언어 선택',
