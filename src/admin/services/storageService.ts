@@ -1,6 +1,6 @@
 /**
- * Uploads a menu image to the local backend (backend/images/uploads/).
- * Returns the public path: /images/uploads/<filename>
+ * Uploads a menu image via the backend to Cloudinary persistent storage.
+ * Returns the secure Cloudinary HTTPS URL.
  */
 import { getStoredAdminToken } from "./adminApi";
 

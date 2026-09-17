@@ -39,7 +39,11 @@ export default function FoodCard({ item, language, onAddToCart, onClick }: FoodC
           alt={localizedName}
           className="w-full h-full object-contain transform scale-100 group-hover:scale-[1.03] transition-transform duration-700 ease-out"
           loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/placeholder-food.jpg";
+          }}
           id={`food-card-img-${item.id}`}
         />
 

@@ -57,6 +57,11 @@ export default function MenuTable({
                   src={item.image || "/placeholder-food.jpg"}
                   alt={getLocalizedField(item.name, "English")}
                   className="w-14 h-14 rounded-xl object-contain"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "/placeholder-food.jpg";
+                  }}
                 />
 
               </td>
