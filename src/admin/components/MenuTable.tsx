@@ -79,7 +79,7 @@ export default function MenuTable({
               </td>
 
               <td>
-                {item.available ? "✅" : "❌"}
+                {(item.isAvailable ?? item.available ?? true) ? "✅" : "❌"}
               </td>
 
               <td>

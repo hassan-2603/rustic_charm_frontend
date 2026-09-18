@@ -847,14 +847,32 @@ export default function CustomerApp() {
     const selCatEn = getCategoryEnglishName(selectedCategory).toLowerCase();
     const itemCatEn = getCategoryEnglishName(item.category).toLowerCase();
 
+    // Find the category object that matches the selected tab
+    const activeCat = categories.find((c) => {
+      const cEn = getCategoryEnglishName(c.name).toLowerCase();
+      return cEn === selCatEn || c.id === selectedCategory;
+    });
+
     const matchesCategory =
       selectedCategory === "All" ||
       selCatEn === "all" ||
-      itemCatEn === selCatEn ||
-      (item.categoryId && (item.categoryId === selectedCategory || item.categoryId === (selectedCategory as any)?.id));
+      (activeCat && item.categoryId && String(item.categoryId) === String(activeCat.id)) ||
+      (item.categoryId && (
+        String(item.categoryId).toLowerCase() === selCatEn ||
+        String(item.categoryId) === String(selectedCategory) ||
+        String(item.categoryId) === String((selectedCategory as any)?.id)
+      )) ||
+      (itemCatEn && (
+        itemCatEn === selCatEn ||
+        (activeCat && itemCatEn === String(activeCat.id).toLowerCase())
+      )) ||
+      (activeCat && item.category && (
+        String(item.category) === String(activeCat.id) ||
+        String(item.category).toLowerCase() === String(activeCat.id).toLowerCase()
+      ));
 
-    const nameStr = getLocalizedField(item.name, language, item);
-    const descStr = getLocalizedField(item.description, language, item);
+    const nameStr = getLocalizedField(item.name, language, item) || (typeof item.name === "string" ? item.name : getCategoryEnglishName(item.name));
+    const descStr = getLocalizedField(item.description, language, item) || (typeof item.description === "string" ? item.description : "");
 
     const matchesSearch =
       nameStr.toLowerCase().includes(query) ||
@@ -1211,9 +1229,10 @@ export default function CustomerApp() {
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6" id="menu-cards-grid">
                         {filteredMenuItems.map((item) => {
-                          const itemLocalizedName = getLocalizedField(item.name, language, item);
+                          const itemLocalizedName = getLocalizedField(item.name, language, item) || (typeof item.name === "string" ? item.name : getCategoryEnglishName(item.name));
                           const itemLocalizedDesc = getLocalizedField(item.description, language, item);
                           const priceLabel = getMenuPriceLabel(item);
+                          const isUnavailable = item.isAvailable === false || item.available === false;
                           return (
                             <div
                               key={item.id}
@@ -1253,10 +1272,10 @@ export default function CustomerApp() {
                                   <span>Feedback</span>
                                 </button>
 
-                                {!item.isAvailable && (
-                                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <span className="text-white font-bold text-lg">
-                                      Currently Unavailable
+                                {isUnavailable && (
+                                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-3 text-center">
+                                    <span className="text-white font-bold text-base sm:text-lg">
+                                      {t.currentlyUnavailable || 'Currently Unavailable'}
                                     </span>
                                   </div>
                                 )}

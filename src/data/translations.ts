@@ -51,7 +51,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'Order Placed',
     successSubtitle: 'Sit back and enjoy the atmosphere. Your journey has begun.',
     orderWillReachSoon: 'Your order will reach soon',
-    thankYouSmile: 'Thank you 😊'
+    thankYouSmile: 'Thank you 😊',
+    currentlyUnavailable: 'Currently Unavailable'
   },
   Russian: {
     welcome: 'Рестро-бар и кафе',
@@ -103,7 +104,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'Заказ оформлен',
     successSubtitle: 'Отдыхайте и наслаждайтесь атмосферой. Мы уже готовим.',
     orderWillReachSoon: 'Ваш заказ скоро прибудет',
-    thankYouSmile: 'Спасибо 😊'
+    thankYouSmile: 'Спасибо 😊',
+    currentlyUnavailable: 'Временно недоступно'
   },
   German: {
     welcome: 'Restro-Bar & Café',
@@ -155,7 +157,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'Bestellt',
     successSubtitle: 'Lehnen Sie sich zurück und genießen Sie das Ambiente.',
     orderWillReachSoon: 'Ihre Bestellung kommt in Kürze an',
-    thankYouSmile: 'Vielen Dank 😊'
+    thankYouSmile: 'Vielen Dank 😊',
+    currentlyUnavailable: 'Derzeit nicht verfügbar'
   },
   Spanish: {
     welcome: 'Restro bar y café',
@@ -207,7 +210,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'Pedido Realizado',
     successSubtitle: 'Relájese y disfrute de la atmósfera. Su experiencia ha comenzado.',
     orderWillReachSoon: 'Su pedido llegará pronto',
-    thankYouSmile: '¡Muchas gracias! 😊'
+    thankYouSmile: '¡Muchas gracias! 😊',
+    currentlyUnavailable: 'Actualmente no disponible'
   },
   Kazakh: {
     welcome: 'Рестро-бар және кафе',
@@ -259,7 +263,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'Тапсырыс қабылданды',
     successSubtitle: 'Жайғасып, жайлы атмосферадан ләззат алыңыз.',
     orderWillReachSoon: 'Тапсырысыңыз жақын арада жетеді',
-    thankYouSmile: 'Рахмет 😊'
+    thankYouSmile: 'Рахмет 😊',
+    currentlyUnavailable: 'Қазір қолжетімді емес'
   },
   Hebrew: {
     welcome: 'רסטרו בר וקפה',
@@ -311,7 +316,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: 'ההזמנה בוצעה',
     successSubtitle: 'התרווחו ותיהנו מהאווירה. החוויה שלכם מתחילה עכשיו.',
     orderWillReachSoon: 'ההזמנה שלך תגיע בקרוב',
-    thankYouSmile: 'תודה רבה 😊'
+    thankYouSmile: 'תודה רבה 😊',
+    currentlyUnavailable: 'כרגע לא זמין'
   },
   Japanese: {
     welcome: 'レストロバー＆カフェ',
@@ -363,7 +369,8 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: '注文完了',
     successSubtitle: 'お席でゆっくりと居心地の良い雰囲気をお楽しみください。',
     orderWillReachSoon: 'ご注文はまもなくお届けいたします',
-    thankYouSmile: 'ありがとうございます 😊'
+    thankYouSmile: 'ありがとうございます 😊',
+    currentlyUnavailable: '現在ご利用いただけません'
   },
   Korean: {
     welcome: '레스트로 바 & 카페',
@@ -415,6 +422,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     successTitle: '주문 완료',
     successSubtitle: '편안한 분위기에서 잠시만 기다려 주십시오. 최고의 요리로 보답하겠습니다.',
     orderWillReachSoon: '주문하신 음식이 곧 도착합니다',
-    thankYouSmile: '감사합니다 😊'
+    thankYouSmile: '감사합니다 😊',
+    currentlyUnavailable: '현재 주문 불가'
   }
 };

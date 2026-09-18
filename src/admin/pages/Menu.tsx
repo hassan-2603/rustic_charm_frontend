@@ -96,10 +96,11 @@ export default function Menu() {
               (selectedVeg === "Veg" && item.isVeg) ||
               (selectedVeg === "Non Veg" && !item.isVeg);
 
+            const isItemAvailable = item.isAvailable ?? item.available ?? true;
             const matchesAvailability =
               selectedAvailability === "Availability" ||
-              (selectedAvailability === "Available" && item.available) ||
-              (selectedAvailability === "Unavailable" && !item.available);
+              (selectedAvailability === "Available" && isItemAvailable) ||
+              (selectedAvailability === "Unavailable" && !isItemAvailable);
 
             return matchesSearch && matchesCategory && matchesVeg && matchesAvailability;
           })}

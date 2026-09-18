@@ -221,15 +221,29 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
           </div>
 
           {/* Add to Cart button */}
-          <button
-            onClick={handleAddSubmit}
-            className="w-full sm:w-auto flex-grow sm:flex-grow-0 bg-olive hover:bg-olive-dark text-white font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-full transition-all duration-300 shadow-md hover:shadow-lg active:scale-98 flex items-center justify-center gap-2"
-            id="details-add-to-cart-submit"
-          >
-            <span>{t.addToCart}</span>
-            <span className="opacity-50">|</span>
-            <span className="font-mono font-medium">₹{(((selectedPriceOption?.amount ?? item.price ?? 0) * quantity)).toFixed(0)}</span>
-          </button>
+          {(() => {
+            const isUnavailable = item.isAvailable === false || item.available === false;
+            return (
+              <button
+                onClick={handleAddSubmit}
+                disabled={isUnavailable}
+                className={`w-full sm:w-auto flex-grow sm:flex-grow-0 text-white font-semibold text-sm tracking-widest uppercase px-8 py-4 rounded-full transition-all duration-300 shadow-md flex items-center justify-center gap-2 ${
+                  isUnavailable
+                    ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                    : 'bg-olive hover:bg-olive-dark hover:shadow-lg active:scale-98 cursor-pointer'
+                }`}
+                id="details-add-to-cart-submit"
+              >
+                <span>{isUnavailable ? (t.currentlyUnavailable || 'Unavailable') : t.addToCart}</span>
+                {!isUnavailable && (
+                  <>
+                    <span className="opacity-50">|</span>
+                    <span className="font-mono font-medium">₹{(((selectedPriceOption?.amount ?? item.price ?? 0) * quantity)).toFixed(0)}</span>
+                  </>
+                )}
+              </button>
+            );
+          })()}
         </div>
       </motion.div>
     </div>
