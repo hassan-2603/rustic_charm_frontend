@@ -267,11 +267,23 @@ export default function OrderDetailsDrawer({
 
   async function handleAddedItems(updated: any) {
     Object.assign(order, updated);
+    if (previewContent?.type === "BILL") {
+      let splits = [];
+      try { splits = await getOrderSplits(order.id); } catch (err) { }
+      const texts = buildPreviewTexts(order, "BILL", { splits });
+      setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
+    }
     forceUpdate((n) => n + 1);
   }
 
   async function handleRemovedItems(updated: any) {
     Object.assign(order, updated);
+    if (previewContent?.type === "BILL") {
+      let splits = [];
+      try { splits = await getOrderSplits(order.id); } catch (err) { }
+      const texts = buildPreviewTexts(order, "BILL", { splits });
+      setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
+    }
     forceUpdate((n) => n + 1);
   }
 
@@ -365,9 +377,16 @@ export default function OrderDetailsDrawer({
     setKotState({ printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message });
   }
 
-  const hasDiscount = Boolean(order.discountAmount && order.discountAmount > 0);
   const isCategoryDiscount = order.discountMode === "category";
-  const { foodTotal: billFoodTotal, alcoholTotal: billAlcoholTotal } = splitItemsByCategory(order.items);
+  const { foodTotal: billFoodTotal, alcoholTotal: billAlcoholTotal } = splitItemsByCategory(order.items || []);
+  const computedSubtotal = (billFoodTotal || 0) + (billAlcoholTotal || 0);
+  const hasDiscount = Boolean(order.discountAmount && order.discountAmount > 0);
+
+  const computedGrandTotal = isCategoryDiscount
+    ? Math.max(0, ((billFoodTotal || 0) - Number(order.foodDiscountAmount || 0)) + ((billAlcoholTotal || 0) - Number(order.alcoholDiscountAmount || 0)))
+    : hasDiscount
+      ? Math.max(0, computedSubtotal - Number(order.discountAmount || 0))
+      : computedSubtotal;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end">
@@ -567,7 +586,7 @@ export default function OrderDetailsDrawer({
               ) : (
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Food Total</span>
-                  <span>₹{total}</span>
+                  <span>₹{computedSubtotal}</span>
                 </div>
               )}
 
@@ -584,7 +603,7 @@ export default function OrderDetailsDrawer({
 
               <div className="flex justify-between text-lg font-bold text-gray-900">
                 <span>Grand Total</span>
-                <span>₹{hasDiscount ? order.finalTotal : total}</span>
+                <span>₹{computedGrandTotal}</span>
               </div>
 
             </div>

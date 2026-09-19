@@ -117,7 +117,7 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (order.customerName) lines.push(`Customer: ${order.customerName}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push(
-      `Date: ${new Date(order.createdAt || Date.now()).toLocaleString("en-IN", {
+      `Date: ${new Date().toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "2-digit",
@@ -171,6 +171,9 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     };
 
     const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
+    const itemsSum = (foodItems.length > 0 || alcoholItems.length > 0)
+      ? (foodTotal + alcoholTotal)
+      : (order.items || []).reduce((sum: number, it: any) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
 
     if (foodItems.length > 0) {
       lines.push("FOOD");
@@ -197,10 +200,19 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
       lines.push("------------------------------------------");
     }
 
-    if (order.discountMode !== "category" && order.discountAmount > 0) {
+    let calculatedGrandTotal = itemsSum;
+    if (order.discountMode === "category") {
+      const fDisc = Number(order.foodDiscountAmount || 0);
+      const aDisc = Number(order.alcoholDiscountAmount || 0);
+      calculatedGrandTotal = Math.max(0, (foodTotal - fDisc) + (alcoholTotal - aDisc));
+    } else if (order.discountAmount > 0) {
       lines.push(formatRightAlignedTotal("DISCOUNT:", order.discountAmount, "-Rs "));
+      calculatedGrandTotal = Math.max(0, itemsSum - Number(order.discountAmount));
+    } else if (order.finalTotal !== null && order.finalTotal !== undefined && Number(order.finalTotal) > 0 && Number(order.finalTotal) < itemsSum) {
+      calculatedGrandTotal = Number(order.finalTotal);
     }
-    lines.push(formatRightAlignedTotal("GRAND TOTAL:", order.finalTotal ?? order.total));
+
+    lines.push(formatRightAlignedTotal("GRAND TOTAL:", calculatedGrandTotal));
   }
 
   lines.push("");

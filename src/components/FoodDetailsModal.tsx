@@ -222,7 +222,7 @@ export default function FoodDetailsModal({ item, language, onClose, onAddToCart 
 
           {/* Add to Cart button */}
           {(() => {
-            const isUnavailable = item.isAvailable === false || item.available === false;
+            const isUnavailable = item.isAvailable === false || (item as any).available === false;
             return (
               <button
                 onClick={handleAddSubmit}

@@ -1232,7 +1232,7 @@ export default function CustomerApp() {
                           const itemLocalizedName = getLocalizedField(item.name, language, item) || (typeof item.name === "string" ? item.name : getCategoryEnglishName(item.name));
                           const itemLocalizedDesc = getLocalizedField(item.description, language, item);
                           const priceLabel = getMenuPriceLabel(item);
-                          const isUnavailable = item.isAvailable === false || item.available === false;
+                          const isUnavailable = item.isAvailable === false || (item as any).available === false;
                           return (
                             <div
                               key={item.id}
