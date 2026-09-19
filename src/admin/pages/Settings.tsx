@@ -373,9 +373,15 @@ export default function Settings() {
 
     try {
       const summary = await translateEntireMenu((progress) => {
-        setProgressText(
-          `Translating ${progress.current} of ${progress.total}: ${progress.itemName}`
-        );
+        if (progress.status === "skipped") {
+          setProgressText(
+            `Checking ${progress.current} of ${progress.total}: ${progress.itemName} (already translated)`
+          );
+        } else {
+          setProgressText(
+            `Translating ${progress.current} of ${progress.total}: ${progress.itemName}`
+          );
+        }
       });
 
       alert(

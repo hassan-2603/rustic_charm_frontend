@@ -19,6 +19,7 @@ export type TranslationProgress = {
   itemsTranslated: number;
   descriptionsTranslated: number;
   skippedCount: number;
+  status: "translating" | "skipped";
 };
 
 export type ProgressCallback = (progress: TranslationProgress) => void;
@@ -171,6 +172,7 @@ export async function translateEntireMenu(onProgress?: ProgressCallback): Promis
           itemsTranslated,
           descriptionsTranslated,
           skippedCount,
+          status: "skipped",
         });
       }
       continue;
@@ -184,6 +186,7 @@ export async function translateEntireMenu(onProgress?: ProgressCallback): Promis
         itemsTranslated,
         descriptionsTranslated,
         skippedCount,
+        status: "translating",
       });
     }
 
@@ -247,12 +250,13 @@ export async function translateEntireMenu(onProgress?: ProgressCallback): Promis
         }
       }
 
-      // Save to backend (persists in both menu_items and menu_translations table)
+      // Save to backend: Keep menu_items clean with plain English name and description.
+      // Multilingual translations live separately in menu_translations table.
       await requestAdminJson(`/menu/${item.id}`, {
         method: "PUT",
         body: JSON.stringify({
-          name: updatedNames,
-          description: updatedDescs,
+          name: englishName,
+          description: hasEnglishDesc ? englishDesc : "",
           translations: updatedTranslations,
         }),
       });

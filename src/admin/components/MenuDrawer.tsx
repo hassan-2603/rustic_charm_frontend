@@ -112,13 +112,8 @@ export default function MenuDrawer({
         imageUrl = await uploadMenuImage(selectedFile);
       }
 
-      const updatedName = item && typeof item.name === "object"
-        ? { ...item.name, English: form.name }
-        : { English: form.name };
-
-      const updatedDescription = item && typeof item.description === "object"
-        ? { ...item.description, English: form.description }
-        : { English: form.description };
+      const updatedName = form.name.trim();
+      const updatedDescription = form.description.trim();
 
       const normalizedPriceOptions = form.priceOptions.filter((option) => option.amount > 0);
       const trimmedCategory = String(form.category || "").trim();
