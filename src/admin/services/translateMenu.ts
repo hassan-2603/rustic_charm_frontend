@@ -143,7 +143,10 @@ export async function translateEntireMenu(onProgress?: ProgressCallback): Promis
         existingNames[lang.name] ||
         existingNames[lang.code];
 
-      const hasName = Boolean(existingNameVal && existingNameVal.trim().length > 0);
+      // Non-Latin script languages shouldn't have raw ASCII English names treated as completed translations
+      const isNonLatin = ["ru", "he", "ja", "ko", "kk"].includes(lang.code);
+      const isIdenticalToEnglish = Boolean(englishName && existingNameVal && existingNameVal.trim().toLowerCase() === englishName.trim().toLowerCase());
+      const hasName = Boolean(existingNameVal && existingNameVal.trim().length > 0) && !(isNonLatin && isIdenticalToEnglish);
 
       const existingDescVal =
         existingTranslations[lang.code]?.description ||

@@ -444,7 +444,38 @@ export const RUSSIAN_TRANSLATIONS: Record<string, string> = {
   "Butter Croissant": "Французский сливочный круассан",
   "Blueberry Muffin": "Черничный маффин",
   "Chocolate Chip Cookie": "Печенье с шоколадом",
-  "Banana Bread": "Банановый кекс"
+  "Banana Bread": "Банановый кекс",
+
+  // Beers
+  "Kingfisher Strong": "Пиво Кингфишер Стронг",
+  "Kingfisher Premium": "Пиво Кингфишер Премиум",
+  "Kingfisher Ultra": "Пиво Кингфишер Ультра",
+  "Budweiser Premium": "Пиво Бадвайзер Премиум",
+  "Budweiser Magnum": "Пиво Бадвайзер Магнум",
+  "Tuborg Strong": "Пиво Туборг Стронг",
+  "Tuborg Premium": "Пиво Туборг Премиум",
+  "Carlsberg Smooth": "Пиво Карлсберг Смут",
+  "Carlsberg Elephant": "Пиво Карлсберг Элефант",
+  "Heineken": "Пиво Хайнекен",
+  "Hoegaarden": "Пиво Хугарден",
+  "Corona Extra": "Пиво Корона Экстра",
+  "Breezer": "Бакарди Бризер",
+  "Bacardi Breezer": "Бакарди Бризер",
+  "People": "Пиво Пипл",
+  "Buzz Ballz": "Коктейль BuzzBallz",
+
+  // Spirits & Liquors
+  "Magic Moment": "Водка Мэджик Момент",
+  "Dom Henriques - Silver": "Ром Дом Энрикес Сильвер",
+  "Greater Than": "Джин Грейтер Зэн",
+  "Royal Challenge": "Виски Роял Челлендж",
+  "Signature": "Виски Сигначе",
+  "Black Dog": "Виски Блэк Дог",
+  "Aperol": "Ликер Апероль",
+  "Glenfiddich": "Односолодовый виски Гленфиддик",
+  "Blenders Pride": "Виски Блендерс Прайд",
+  "Absolut Blue": "Водка Абсолют Блю",
+  "VAT 69": "Виски ВАТ 69"
 };
 
 export function translateStringToRussian(text: string): string {
