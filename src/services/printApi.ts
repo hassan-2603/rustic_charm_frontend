@@ -50,9 +50,9 @@ export function createPrintApi(request: Requester) {
     jobId: string,
     {
       timeoutMs = 20000,
-      initialDelayMs = 200,
-      fastIntervalMs = 350,
-      regularIntervalMs = 700,
+      initialDelayMs = 150,
+      fastIntervalMs = 250,
+      regularIntervalMs = 500,
       intervalMs,
     }: {
       timeoutMs?: number;
