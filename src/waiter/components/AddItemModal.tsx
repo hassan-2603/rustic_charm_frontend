@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, X, Plus, Minus, ChevronDown, ChevronUp, FileText } from "lucide-react";
-import { getMenuItems } from "../../services/customerApi";
+import { getMenuItems, getCachedMenuByLang, setCachedMenuByLang, listenToMenuVersion } from "../../services/customerApi";
 import { addOrderItems } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
 import { getLocalizedCategory, getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
@@ -30,9 +30,61 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
   useEffect(() => {
+    const unsub = listenToMenuVersion(async (newVersion) => {
+      try {
+        const fresh = await getMenuItems("en");
+        if (fresh && fresh.length > 0) {
+          setCachedMenuByLang("en", newVersion, fresh);
+          setMenuItems(fresh);
+        }
+      } catch (err) {
+        console.error("Failed to update menu on version change in AddItemModal:", err);
+      }
+    }, 1, 60000);
+
+    return unsub;
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     setDescription(order?.description || "");
-    getMenuItems().then(setMenuItems).catch(console.error);
+
+    // 1. Check whether the existing frontend menu cache already contains the English menu.
+    const cached = getCachedMenuByLang("en");
+    if (cached && cached.length > 0) {
+      // 2. If cached, immediately populate AddItemModal's local menuItems state
+      // 3. Do NOT make an HTTP request in that case
+      setMenuItems(cached);
+      return;
+    }
+
+    // If the cache does not contain the English menu:
+    let cancelled = false;
+    getMenuItems("en")
+      .then((items) => {
+        if (cancelled) return;
+        const list = Array.isArray(items) ? items : [];
+        if (list.length > 0) {
+          setMenuItems(list);
+          // Preserve existing menu version semantics from localStorage if available
+          let version = 1;
+          try {
+            const raw = localStorage.getItem("rustic_menu_en");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed.version === "number") {
+                version = parsed.version;
+              }
+            }
+          } catch {}
+          setCachedMenuByLang("en", version, list);
+        }
+      })
+      .catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, order]);
 
   useEffect(() => {

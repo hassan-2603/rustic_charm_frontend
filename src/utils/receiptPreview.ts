@@ -5,11 +5,13 @@
 // only ever built server-side / by the connector.
 
 import { splitItemsByCategory } from "./discountUtils";
+import type { AuthoritativeBill } from "../admin/services/billPreviewApi";
 
-interface PreviewOptions {
+export interface PreviewOptions {
   splits?: any[];
   kotSections?: Record<string, string>;
   splitLabel?: string;
+  authBill?: AuthoritativeBill | null;
 }
 
 function wrapText(text: string, width: number): string[] {
@@ -170,49 +172,89 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
       }
     };
 
-    const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
-    const itemsSum = (foodItems.length > 0 || alcoholItems.length > 0)
-      ? (foodTotal + alcoholTotal)
-      : (order.items || []).reduce((sum: number, it: any) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
+    if (options?.authBill) {
+      const auth = options.authBill;
+      const foodList = auth.foodItems || [];
+      const alcoholList = auth.alcoholItems || [];
 
-    if (foodItems.length > 0) {
-      lines.push("FOOD");
-      printItemRows(foodItems);
-      lines.push(formatRightAlignedTotal("Food Subtotal:", foodTotal));
-      if (order.foodDiscountAmount > 0) {
-        lines.push(formatRightAlignedTotal(`Discount (${order.foodDiscountPercent}%):`, order.foodDiscountAmount, "-Rs "));
+      if (foodList.length > 0) {
+        lines.push("FOOD");
+        printItemRows(foodList);
+        lines.push(formatRightAlignedTotal("Food Subtotal:", auth.foodTotal));
+        if (auth.foodDiscountAmount > 0) {
+          lines.push(formatRightAlignedTotal(`Discount (${auth.foodDiscountPercent}%):`, auth.foodDiscountAmount, "-Rs "));
+        }
+        lines.push("------------------------------------------");
       }
-      lines.push("------------------------------------------");
-    }
 
-    if (alcoholItems.length > 0) {
-      lines.push("LIQUOR");
-      printItemRows(alcoholItems);
-      lines.push(formatRightAlignedTotal("Liquor Subtotal:", alcoholTotal));
-      if (order.alcoholDiscountAmount > 0) {
-        lines.push(formatRightAlignedTotal(`Discount (${order.alcoholDiscountPercent}%):`, order.alcoholDiscountAmount, "-Rs "));
+      if (alcoholList.length > 0) {
+        lines.push("LIQUOR");
+        printItemRows(alcoholList);
+        lines.push(formatRightAlignedTotal("Liquor Subtotal:", auth.alcoholTotal));
+        if (auth.alcoholDiscountAmount > 0) {
+          lines.push(formatRightAlignedTotal(`Discount (${auth.alcoholDiscountPercent}%):`, auth.alcoholDiscountAmount, "-Rs "));
+        }
+        lines.push("------------------------------------------");
       }
-      lines.push("------------------------------------------");
-    }
 
-    if (!foodItems.length && !alcoholItems.length && order.items?.length) {
-      printItemRows(order.items);
-      lines.push("------------------------------------------");
-    }
+      if (!foodList.length && !alcoholList.length && auth.items?.length) {
+        printItemRows(auth.items);
+        lines.push("------------------------------------------");
+      }
 
-    let calculatedGrandTotal = itemsSum;
-    if (order.discountMode === "category") {
-      const fDisc = Number(order.foodDiscountAmount || 0);
-      const aDisc = Number(order.alcoholDiscountAmount || 0);
-      calculatedGrandTotal = Math.max(0, (foodTotal - fDisc) + (alcoholTotal - aDisc));
-    } else if (order.discountAmount > 0) {
-      lines.push(formatRightAlignedTotal("DISCOUNT:", order.discountAmount, "-Rs "));
-      calculatedGrandTotal = Math.max(0, itemsSum - Number(order.discountAmount));
-    } else if (order.finalTotal !== null && order.finalTotal !== undefined && Number(order.finalTotal) > 0 && Number(order.finalTotal) < itemsSum) {
-      calculatedGrandTotal = Number(order.finalTotal);
-    }
+      if (auth.discountMode === "category") {
+        // Rendered per-section above
+      } else if (auth.discountAmount > 0) {
+        const discLabel = (auth.discountMode === "percent" || order.discountType === "percent" || order.discountMode === "percent") && (order.discountValue || order.discount_value)
+          ? `Discount (${order.discountValue || order.discount_value}%):`
+          : "DISCOUNT:";
+        lines.push(formatRightAlignedTotal(discLabel, auth.discountAmount, "-Rs "));
+      }
 
-    lines.push(formatRightAlignedTotal("GRAND TOTAL:", calculatedGrandTotal));
+      lines.push(formatRightAlignedTotal("GRAND TOTAL:", auth.finalTotal));
+    } else {
+      const { foodItems, alcoholItems, foodTotal, alcoholTotal } = splitItemsByCategory(order.items || []);
+      const itemsSum = (foodItems.length > 0 || alcoholItems.length > 0)
+        ? (foodTotal + alcoholTotal)
+        : (order.items || []).reduce((sum: number, it: any) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
+
+      if (foodItems.length > 0) {
+        lines.push("FOOD");
+        printItemRows(foodItems);
+        lines.push(formatRightAlignedTotal("Food Subtotal:", foodTotal));
+        if (order.foodDiscountAmount > 0) {
+          lines.push(formatRightAlignedTotal(`Discount (${order.foodDiscountPercent}%):`, order.foodDiscountAmount, "-Rs "));
+        }
+        lines.push("------------------------------------------");
+      }
+
+      if (alcoholItems.length > 0) {
+        lines.push("LIQUOR");
+        printItemRows(alcoholItems);
+        lines.push(formatRightAlignedTotal("Liquor Subtotal:", alcoholTotal));
+        if (order.alcoholDiscountAmount > 0) {
+          lines.push(formatRightAlignedTotal(`Discount (${order.alcoholDiscountPercent}%):`, order.alcoholDiscountAmount, "-Rs "));
+        }
+        lines.push("------------------------------------------");
+      }
+
+      if (!foodItems.length && !alcoholItems.length && order.items?.length) {
+        printItemRows(order.items);
+        lines.push("------------------------------------------");
+      }
+
+      let calculatedGrandTotal = itemsSum;
+      if (order.discountMode === "category") {
+        const fDisc = Number(order.foodDiscountAmount || 0);
+        const aDisc = Number(order.alcoholDiscountAmount || 0);
+        calculatedGrandTotal = Math.max(0, (foodTotal - fDisc) + (alcoholTotal - aDisc));
+      } else if (order.discountAmount > 0) {
+        lines.push(formatRightAlignedTotal("DISCOUNT:", order.discountAmount, "-Rs "));
+        calculatedGrandTotal = Math.max(0, itemsSum - Number(order.discountAmount));
+      }
+
+      lines.push(formatRightAlignedTotal("GRAND TOTAL:", calculatedGrandTotal));
+    }
   }
 
   lines.push("");
@@ -311,14 +353,14 @@ export function buildPreviewTexts(order: any, type: "BILL" | "KOT", options?: Pr
         };
       });
     }
-    return [{ text: buildSinglePreviewText(order, type), isKot: false }];
+    return [{ text: buildSinglePreviewText(order, type, options), isKot: false }];
   }
 }
 
 /** Opens a small window with the preview text — no printer involved. */
-export function openReceiptPreview(order: any, type: "BILL" | "KOT") {
+export function openReceiptPreview(order: any, type: "BILL" | "KOT", options?: PreviewOptions) {
   // Waiter preview still falls back to unified since they don't fetch split contexts dynamically here.
-  const textArr = buildPreviewTexts(order, type).map(t => t.text);
+  const textArr = buildPreviewTexts(order, type, options).map(t => t.text);
   const fullText = textArr.join("\n\n==========================================\n\n");
   const win = window.open("", "_blank", "width=380,height=600");
   if (!win) return;

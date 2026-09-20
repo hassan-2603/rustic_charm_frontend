@@ -8,6 +8,7 @@ import RemoveItemModal from "../components/RemoveItemModal";
 import ChangeTableModal from "../components/ChangeTableModal";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
 import { openReceiptPreview } from "../../utils/receiptPreview";
+import { fetchBillPreview } from "../../admin/services/billPreviewApi";
 import type { DiscountPayload } from "../../utils/discountUtils";
 import type { PrintJob } from "../../services/printApi";
 import EditItemPricesModal from "../../components/EditItemPricesModal";
@@ -115,8 +116,18 @@ export default function TableOrders() {
         }));
     }
 
-    function handlePreview(order: any, type: "BILL" | "KOT") {
-        openReceiptPreview(order, type);
+    async function handlePreview(order: any, type: "BILL" | "KOT") {
+        if (type === "BILL") {
+            let authBill = null;
+            try {
+                authBill = await fetchBillPreview(order.id);
+            } catch (e) {
+                console.error("Failed to fetch bill preview:", e);
+            }
+            openReceiptPreview(order, "BILL", { authBill });
+        } else {
+            openReceiptPreview(order, type);
+        }
     }
 
     function handleOpenDiscount(order: any) { setDiscountOrder(order); }

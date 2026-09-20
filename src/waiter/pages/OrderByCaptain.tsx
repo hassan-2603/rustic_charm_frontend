@@ -31,7 +31,7 @@ export default function OrderByCaptain() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    getMenuItems().then(setMenuItems).catch(console.error);
+    getMenuItems("en").then(setMenuItems).catch(console.error);
     return listenTables(setTables);
   }, []);
 

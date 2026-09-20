@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import OrderTimeline from "./OrderTimeline";
 import {
   X,
@@ -25,6 +25,7 @@ import RemoveItemModal from "./RemoveItemModal";
 import { splitItemsByCategory, type DiscountPayload } from "../../utils/discountUtils";
 import { buildPreviewTexts, openReceiptPreview } from "../../utils/receiptPreview";
 import { updateOrderItemPrices } from "../services/orderApi";
+import { fetchBillPreview, type AuthoritativeBill } from "../services/billPreviewApi";
 
 import StatusBadge from "./StatusBadge";
 import OrderTimerBadge from "../../components/OrderTimerBadge";
@@ -61,6 +62,31 @@ export default function OrderDetailsDrawer({
   const [isCancelling, setIsCancelling] = useState(false);
   const [previewContent, setPreviewContent] = useState<{ type: "BILL" | "KOT", text: string } | null>(null);
   const [, forceUpdate] = useState(0);
+  const [authBillPreview, setAuthBillPreview] = useState<AuthoritativeBill | null>(null);
+  const [loadingBillPreview, setLoadingBillPreview] = useState(false);
+  const [billPreviewError, setBillPreviewError] = useState<string | null>(null);
+
+  const refreshBillPreview = useCallback(async () => {
+    if (!order?.id) return;
+    setLoadingBillPreview(true);
+    setBillPreviewError(null);
+    try {
+      const preview = await fetchBillPreview(order.id);
+      setAuthBillPreview(preview);
+    } catch (err: any) {
+      console.error("Failed to fetch bill preview:", err);
+      setBillPreviewError(err?.message || "Unable to calculate");
+      setAuthBillPreview(null);
+    } finally {
+      setLoadingBillPreview(false);
+    }
+  }, [order?.id]);
+
+  useEffect(() => {
+    if (open && order?.id) {
+      refreshBillPreview();
+    }
+  }, [open, order?.id, refreshBillPreview]);
 
   const areas = useMemo(() => [...new Set(tables.map((table) => table.area))], [tables]);
   const selectedTable = tables.find((table) => table.id === selectedTableId);
@@ -267,10 +293,13 @@ export default function OrderDetailsDrawer({
 
   async function handleAddedItems(updated: any) {
     Object.assign(order, updated);
+    refreshBillPreview();
     if (previewContent?.type === "BILL") {
       let splits = [];
       try { splits = await getOrderSplits(order.id); } catch (err) { }
-      const texts = buildPreviewTexts(order, "BILL", { splits });
+      let preview = null;
+      try { preview = await fetchBillPreview(order.id); setAuthBillPreview(preview); } catch (_) {}
+      const texts = buildPreviewTexts(order, "BILL", { splits, authBill: preview });
       setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
     }
     forceUpdate((n) => n + 1);
@@ -278,10 +307,13 @@ export default function OrderDetailsDrawer({
 
   async function handleRemovedItems(updated: any) {
     Object.assign(order, updated);
+    refreshBillPreview();
     if (previewContent?.type === "BILL") {
       let splits = [];
       try { splits = await getOrderSplits(order.id); } catch (err) { }
-      const texts = buildPreviewTexts(order, "BILL", { splits });
+      let preview = null;
+      try { preview = await fetchBillPreview(order.id); setAuthBillPreview(preview); } catch (_) {}
+      const texts = buildPreviewTexts(order, "BILL", { splits, authBill: preview });
       setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
     }
     forceUpdate((n) => n + 1);
@@ -310,11 +342,13 @@ export default function OrderDetailsDrawer({
   async function handleSaveDiscount(payload: DiscountPayload) {
     await updateOrderDiscount(order.id, payload);
     Object.assign(order, payload);
+    await refreshBillPreview();
   }
 
   async function handleSavePrices(updates: { id: string; newPrice: number }[]) {
     const updatedOrder = await updateOrderItemPrices(order.id, updates);
     Object.assign(order, updatedOrder);
+    await refreshBillPreview();
     forceUpdate((n) => n + 1);
   }
 
@@ -334,7 +368,15 @@ export default function OrderDetailsDrawer({
         splits = await getOrderSplits(order.id);
       } catch (err) { }
 
-      const texts = buildPreviewTexts(order, "BILL", { splits });
+      let preview = authBillPreview;
+      if (!preview) {
+        try {
+          preview = await fetchBillPreview(order.id);
+          setAuthBillPreview(preview);
+        } catch (_) {}
+      }
+
+      const texts = buildPreviewTexts(order, "BILL", { splits, authBill: preview });
       setPreviewContent({ type: "BILL", text: texts.map((t) => t.text).join("\n\n==========================================\n\n") });
       return;
     }
@@ -376,17 +418,6 @@ export default function OrderDetailsDrawer({
     const outcome = await retryPrint(lastJobId.KOT, "KOT");
     setKotState({ printing: false, result: outcome.ok ? "success" : "failed", message: outcome.message });
   }
-
-  const isCategoryDiscount = order.discountMode === "category";
-  const { foodTotal: billFoodTotal, alcoholTotal: billAlcoholTotal } = splitItemsByCategory(order.items || []);
-  const computedSubtotal = (billFoodTotal || 0) + (billAlcoholTotal || 0);
-  const hasDiscount = Boolean(order.discountAmount && order.discountAmount > 0);
-
-  const computedGrandTotal = isCategoryDiscount
-    ? Math.max(0, ((billFoodTotal || 0) - Number(order.foodDiscountAmount || 0)) + ((billAlcoholTotal || 0) - Number(order.alcoholDiscountAmount || 0)))
-    : hasDiscount
-      ? Math.max(0, computedSubtotal - Number(order.discountAmount || 0))
-      : computedSubtotal;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end">
@@ -557,55 +588,80 @@ export default function OrderDetailsDrawer({
             </h3>
 
             <div className="space-y-3">
-
-              {isCategoryDiscount ? (
+              {loadingBillPreview ? (
+                <div className="py-2 text-center text-sm text-gray-500 animate-pulse">Calculating authoritative bill...</div>
+              ) : billPreviewError ? (
+                <div className="py-2 text-center text-sm text-red-500">{billPreviewError}</div>
+              ) : authBillPreview ? (
                 <>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Food Total</span>
-                    <span>₹{billFoodTotal}</span>
+                  {authBillPreview.discountMode === "category" ? (
+                    <>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Food Total</span>
+                        <span>₹{authBillPreview.foodTotal}</span>
+                      </div>
+                      {authBillPreview.foodDiscountAmount > 0 && (
+                        <div className="flex justify-between text-sm text-red-600 font-semibold">
+                          <span>Food Discount ({authBillPreview.foodDiscountPercent}%)</span>
+                          <span>-₹{authBillPreview.foodDiscountAmount}</span>
+                        </div>
+                      )}
+                      {authBillPreview.alcoholTotal > 0 && (
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Liquor Total</span>
+                          <span>₹{authBillPreview.alcoholTotal}</span>
+                        </div>
+                      )}
+                      {authBillPreview.alcoholDiscountAmount > 0 && (
+                        <div className="flex justify-between text-sm text-red-600 font-semibold">
+                          <span>Liquor Discount ({authBillPreview.alcoholDiscountPercent}%)</span>
+                          <span>-₹{authBillPreview.alcoholDiscountAmount}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {authBillPreview.alcoholTotal > 0 ? (
+                        <>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Food Subtotal</span>
+                            <span>₹{authBillPreview.foodTotal}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Liquor Subtotal</span>
+                            <span>₹{authBillPreview.alcoholTotal}</span>
+                          </div>
+                          <div className="flex justify-between text-sm font-medium text-gray-700">
+                            <span>Items Subtotal</span>
+                            <span>₹{authBillPreview.total}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Food Total</span>
+                          <span>₹{authBillPreview.total}</span>
+                        </div>
+                      )}
+
+                      {authBillPreview.discountAmount > 0 && (
+                        <div className="flex justify-between text-sm text-red-600 font-semibold animate-in fade-in slide-in-from-top-1 duration-200">
+                          <span>
+                            Discount {authBillPreview.discountMode === 'percent' ? `(${order.discountValue || authBillPreview.foodDiscountPercent || 0}%)` : `(₹${authBillPreview.discountAmount})`}
+                          </span>
+                          <span>-₹{authBillPreview.discountAmount}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <hr />
+
+                  <div className="flex justify-between text-lg font-bold text-gray-900">
+                    <span>Grand Total</span>
+                    <span>₹{authBillPreview.finalTotal}</span>
                   </div>
-                  {order.foodDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-red-600 font-semibold">
-                      <span>Food Discount ({order.foodDiscountPercent}%)</span>
-                      <span>-₹{order.foodDiscountAmount}</span>
-                    </div>
-                  )}
-                  {billAlcoholTotal > 0 && (
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Liquor Total</span>
-                      <span>₹{billAlcoholTotal}</span>
-                    </div>
-                  )}
-                  {order.alcoholDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-red-600 font-semibold">
-                      <span>Liquor Discount ({order.alcoholDiscountPercent}%)</span>
-                      <span>-₹{order.alcoholDiscountAmount}</span>
-                    </div>
-                  )}
                 </>
-              ) : (
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Food Total</span>
-                  <span>₹{computedSubtotal}</span>
-                </div>
-              )}
-
-              {!isCategoryDiscount && hasDiscount && (
-                <div className="flex justify-between text-sm text-red-600 font-semibold animate-in fade-in slide-in-from-top-1 duration-200">
-                  <span>
-                    Discount ({order.discountType === 'percent' ? `${order.discountValue}%` : `₹${order.discountValue}`})
-                  </span>
-                  <span>-₹{order.discountAmount}</span>
-                </div>
-              )}
-
-              <hr />
-
-              <div className="flex justify-between text-lg font-bold text-gray-900">
-                <span>Grand Total</span>
-                <span>₹{computedGrandTotal}</span>
-              </div>
-
+              ) : null}
             </div>
 
           </div>
@@ -754,30 +810,35 @@ export default function OrderDetailsDrawer({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setIsDiscountModalOpen(true)}
-                className="w-full border border-gray-300 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-1.5 text-sm sm:text-base"
-              >
-                <Percent size={17} />
-                {hasDiscount ? "Edit Discount" : "Discount"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSplitBillOpen(true)}
-                className="w-full border border-blue-300 text-blue-600 py-3 rounded-xl font-semibold hover:bg-blue-50 transition text-sm sm:text-base"
-              >
-                Split Bill
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditPricesOpen(true)}
-                className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition col-span-2 lg:col-span-1 text-sm sm:text-base"
-              >
-                Edit Prices
-              </button>
-            </div>
+            {(() => {
+              const hasDiscount = Boolean(authBillPreview ? authBillPreview.discountAmount > 0 : (order.discountAmount && Number(order.discountAmount) > 0));
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsDiscountModalOpen(true)}
+                    className="w-full border border-gray-300 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-1.5 text-sm sm:text-base"
+                  >
+                    <Percent size={17} />
+                    {hasDiscount ? "Edit Discount" : "Discount"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSplitBillOpen(true)}
+                    className="w-full border border-blue-300 text-blue-600 py-3 rounded-xl font-semibold hover:bg-blue-50 transition text-sm sm:text-base"
+                  >
+                    Split Bill
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditPricesOpen(true)}
+                    className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition col-span-2 lg:col-span-1 text-sm sm:text-base"
+                  >
+                    Edit Prices
+                  </button>
+                </div>
+              );
+            })()}
 
             {previewContent && (
               <div className="bg-gray-50 border p-4 rounded-xl max-h-64 overflow-y-auto w-full">
