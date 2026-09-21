@@ -1259,19 +1259,6 @@ export default function CustomerApp() {
                                   )}
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFeedbackItem(item);
-                                  }}
-                                  className="absolute top-3 right-3 bg-white/95 hover:bg-white text-gray-700 hover:text-amber-700 border border-gray-200 px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer z-10"
-                                  title="Give feedback for this dish"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-                                  <span>Feedback</span>
-                                </button>
-
                                 {isUnavailable && (
                                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-3 text-center">
                                     <span className="text-white font-bold text-base sm:text-lg">
