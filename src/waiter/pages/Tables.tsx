@@ -52,16 +52,17 @@ export default function Tables() {
                             </div>
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
                                 {areaTables.map((table) => {
-                                    const isOccupied = table.occupied || (table.status && table.status.toLowerCase() === "occupied");
-                                    const activeOrder = isOccupied
-                                        ? orders.find(
-                                            (o) =>
-                                                (o.tableId === table.id || o.tableReference === table.id || o.tableReference === table.tableKey) &&
-                                                o.status !== "Completed" &&
-                                                o.status !== "Rejected" &&
-                                                o.status !== "Cancelled"
-                                        )
-                                        : null;
+                                    const activeOrder = orders.find(
+                                        (o) =>
+                                            (o.tableId === table.id ||
+                                                o.tableReference === table.id ||
+                                                o.tableReference === table.tableKey ||
+                                                (table.tableNumber && o.tableNumber === table.tableNumber && (o.tableArea === table.area || o.tableArea === table.areaLabel))) &&
+                                            o.status !== "Completed" &&
+                                            o.status !== "Rejected" &&
+                                            o.status !== "Cancelled"
+                                    );
+                                    const isOccupied = Boolean(table.occupied) || (table.status && table.status.toLowerCase() === "occupied") || Boolean(activeOrder);
 
                                     return (
                                         <Link
@@ -76,8 +77,8 @@ export default function Tables() {
                                             <span className="text-2xl font-bold">
                                                 {table.tableNumber}
                                             </span>
-                                            <span className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isOccupied ? 'bg-yellow-200' : 'bg-gray-100'}`}>
-                                                {table.status}
+                                            <span className={`text-xs font-medium mt-1 px-2 py-0.5 rounded-full ${isOccupied ? 'bg-yellow-200 text-yellow-900' : 'bg-gray-100 text-gray-700'}`}>
+                                                {isOccupied ? "Occupied" : (table.status ? (table.status.charAt(0).toUpperCase() + table.status.slice(1).toLowerCase()) : "Available")}
                                             </span>
                                             {isOccupied && activeOrder && (
                                                 <div className="flex flex-col items-center gap-1 mt-1.5 max-w-full">

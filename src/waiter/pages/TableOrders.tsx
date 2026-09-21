@@ -55,12 +55,18 @@ export default function TableOrders() {
         };
     }, []);
 
-    const table = tables.find((t) => t.id === tableId);
+    const table = tables.find((t) => t.id === tableId || t.tableKey === tableId);
     const tableOrders = orders.filter(
         (o: any) =>
             o.tableId === tableId ||
             o.tableReference === tableId ||
-            (table && (o.tableReference === table.tableKey || o.tableReference === table.id))
+            (table && (
+                o.tableId === table.id ||
+                o.tableId === table.tableKey ||
+                o.tableReference === table.tableKey ||
+                o.tableReference === table.id ||
+                (table.tableNumber && o.tableNumber === table.tableNumber && (o.tableArea === table.area || o.tableArea === table.areaLabel))
+            ))
     );
 
     const activeOrders = tableOrders.filter((o) => o.status !== "Completed" && o.status !== "Rejected" && o.status !== "Cancelled");

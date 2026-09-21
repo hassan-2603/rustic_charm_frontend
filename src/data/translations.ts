@@ -63,7 +63,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     searchPlaceholder: 'Поиск по меню...',
     all: 'Все',
     veg: 'Вегетарианское',
-    nonVeg: 'Мясное блюдо',
+    nonVeg: 'Не вегетарианское',
     rating: 'Рейтинг',
     prepTime: 'Приготовление',
     addToCart: 'Добавить в корзину',
