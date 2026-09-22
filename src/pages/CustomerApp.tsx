@@ -153,6 +153,15 @@ export default function CustomerApp() {
     }
   });
   const [sessionOrders, setSessionOrders] = useState<any[]>([]);
+  const [orderedItemNames, setOrderedItemNames] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("rusticSession");
+    if (!saved) return {};
+    try {
+      return JSON.parse(saved).orderedItemNames || {};
+    } catch {
+      return {};
+    }
+  });
   const [currentWaiterName, setCurrentWaiterName] = useState<string | null>(null);
   const sessionOrdersUnsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -181,11 +190,13 @@ export default function CustomerApp() {
       customerName: "",
       customerPhone: "",
       currentPage: "landing",
+      orderedItemNames: {},
     };
     localStorage.setItem("rusticSession", JSON.stringify(nextSession));
     setSessionId(nextSession.sessionId);
     setHasActiveOrder(false);
     setSessionOrders([]);
+    setOrderedItemNames({});
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
@@ -208,12 +219,14 @@ export default function CustomerApp() {
       customerName: "",
       customerPhone: "",
       table: tableReference ?? session.table ?? "",
+      orderedItemNames: {},
     };
     localStorage.setItem("rusticSession", JSON.stringify(nextSession));
     setCurrentOrderId("");
     setCurrentOrderNumber("");
     setCurrentOrderStatus("Pending");
     setSessionOrders([]);
+    setOrderedItemNames({});
     setCart([]);
     setHasActiveOrder(false);
     setCustomerName("");
@@ -235,6 +248,7 @@ export default function CustomerApp() {
       customerName: overrides.customerName ?? currentSession.customerName ?? customerName,
       customerPhone: overrides.customerPhone ?? currentSession.customerPhone ?? customerPhone,
       currentPage: overrides.currentPage ?? currentSession.currentPage ?? page,
+      orderedItemNames: overrides.orderedItemNames ?? currentSession.orderedItemNames ?? orderedItemNames,
     };
 
     localStorage.setItem("rusticSession", JSON.stringify(nextSession));
@@ -735,6 +749,20 @@ export default function CustomerApp() {
         },
       }));
 
+      const updatedItemNames = { ...orderedItemNames };
+      cart.forEach((c) => {
+        const locName = getLocalizedField(c.menuItem.name, language, c.menuItem) || (typeof c.menuItem.name === "string" ? c.menuItem.name : "");
+        const optSuffix = c.selectedPriceOption?.name ? ` (${c.selectedPriceOption.name})` : "";
+        const fullName = `${locName}${optSuffix}`;
+        if (c.menuItem.id) {
+          updatedItemNames[c.menuItem.id] = fullName;
+        }
+        if (c.menuItem.englishName) {
+          updatedItemNames[c.menuItem.englishName.toLowerCase()] = fullName;
+        }
+      });
+      setOrderedItemNames(updatedItemNames);
+
       const result = await createOrder(
         {
           tableReference: tableToUse,
@@ -762,6 +790,7 @@ export default function CustomerApp() {
         currentOrderStatus: "Pending",
         customerName,
         customerPhone,
+        orderedItemNames: updatedItemNames,
       });
       setSessionId(sessionId);
       setCurrentTable(tableToUse);
@@ -770,6 +799,11 @@ export default function CustomerApp() {
       setCurrentOrderId(result.id);
       setCurrentOrderNumber(result.orderNumber);
       setCurrentOrderStatus("Pending");
+
+      const freshOrders = await getOrders(sessionId).catch(() => []);
+      if (freshOrders && freshOrders.length > 0) {
+        setSessionOrders(freshOrders);
+      }
 
       setCart([]);
 
@@ -1360,6 +1394,8 @@ export default function CustomerApp() {
                 currentOrderNumber={currentOrderNumber}
                 currentOrderStatus={currentOrderStatus}
                 sessionOrders={sessionOrders}
+                menuItems={menuItems}
+                orderedItemNames={orderedItemNames}
                 waiterName={currentWaiterName}
                 onBackToMenu={handleGoToMenu}
                 onResetOrder={handleGoToHome}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, XCircle, Check, Sparkles, User } from 'lucide-react';
-import { OrderStatus, Language } from '../types';
+import { ArrowLeft, RefreshCw, XCircle, Check, Sparkles, User, ShoppingBag } from 'lucide-react';
+import { OrderStatus, Language, MenuItem, getLocalizedField } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { motion, AnimatePresence } from 'motion/react';
 import OrderTimerBadge from './OrderTimerBadge';
@@ -11,11 +11,71 @@ interface OrderTimelineProps {
   currentOrderNumber: string;
   currentOrderStatus: OrderStatus;
   sessionOrders: any[];
+  menuItems?: MenuItem[];
+  orderedItemNames?: Record<string, string>;
   onBackToMenu: () => void;
   onResetOrder: () => void;
   onRequestBill: () => void;
   onCallWaiter?: () => Promise<void>;
   waiterName?: string | null;
+}
+
+function resolveItemDisplayName(
+  item: any,
+  language: Language,
+  menuItems?: MenuItem[],
+  orderedItemNames?: Record<string, string>
+): string {
+  if (!item) return "";
+
+  // 1. Direct saved localized name from the order
+  const directName =
+    item.orderedName ||
+    item.localizedName ||
+    orderedItemNames?.[item.id] ||
+    orderedItemNames?.[item.menuItemId] ||
+    (item.name ? orderedItemNames?.[String(item.name).toLowerCase()] : undefined);
+  if (directName) return directName;
+
+  // 2. Extract portion/option suffix like "(Half)" or "(Full)"
+  let optionSuffix = "";
+  const suffixMatch = String(item.name || "").match(/\s*\([^)]+\)$/);
+  if (suffixMatch) {
+    optionSuffix = suffixMatch[0].trim();
+  }
+
+  // 3. Match menuItem by ID in loaded menu items (contains current language translation)
+  const menuItemId = item.menuItemId || item.menu_item_id;
+  let baseName = "";
+  if (menuItemId && menuItems && menuItems.length > 0) {
+    const mi = menuItems.find((m) => String(m.id) === String(menuItemId));
+    if (mi) {
+      baseName = getLocalizedField(mi.name, language, mi) || (typeof mi.name === "string" ? mi.name : "");
+    }
+  }
+
+  // 4. Match menuItem by English or raw name
+  if (!baseName && menuItems && menuItems.length > 0) {
+    const rawEnglish = String(item.name || "").replace(/\s*\([^)]+\)$/, "").trim().toLowerCase();
+    const mi = menuItems.find((m) => {
+      const en = (m.englishName || getLocalizedField(m.name, "English", m) || m.name || "").toLowerCase();
+      return en === rawEnglish;
+    });
+    if (mi) {
+      baseName = getLocalizedField(mi.name, language, mi) || (typeof mi.name === "string" ? mi.name : "");
+    }
+  }
+
+  // 5. Combine baseName with portion suffix if found
+  if (baseName) {
+    if (optionSuffix && !baseName.includes(optionSuffix)) {
+      return `${baseName} ${optionSuffix}`;
+    }
+    return baseName;
+  }
+
+  // 6. Fallback
+  return item.name || "";
 }
 
 export default function OrderTimeline({
@@ -24,6 +84,8 @@ export default function OrderTimeline({
   currentOrderNumber,
   currentOrderStatus,
   sessionOrders,
+  menuItems,
+  orderedItemNames,
   onBackToMenu,
   onResetOrder,
   onRequestBill,
@@ -86,6 +148,66 @@ export default function OrderTimeline({
 
   const orderReachMessage = t.orderWillReachSoon || "Your order will reach soon";
   const thankYouMessage = t.thankYouSmile || "Thank you 😊";
+
+  const labels: Record<string, Record<Language, string>> = {
+    orderedItems: {
+      English: 'Your Ordered Items',
+      Russian: 'Ваш заказ',
+      German: 'Ihre bestellten Artikel',
+      French: 'Vos articles commandés',
+      Hindi: 'आपके ऑर्डर किए गए आइटम',
+      Spanish: 'Sus artículos pedidos',
+      Arabic: 'الأطباق المطلوبة',
+    },
+    items: {
+      English: 'items',
+      Russian: 'блюд',
+      German: 'Artikel',
+      French: 'articles',
+      Hindi: 'आइटम',
+      Spanish: 'artículos',
+      Arabic: 'أطباق',
+    },
+    orderRound: {
+      English: 'Order',
+      Russian: 'Заказ',
+      German: 'Bestellung',
+      French: 'Commande',
+      Hindi: 'ऑर्डर',
+      Spanish: 'Pedido',
+      Arabic: 'طلب',
+    },
+    total: {
+      English: 'Total',
+      Russian: 'Итого',
+      German: 'Gesamt',
+      French: 'Total',
+      Hindi: 'कुल',
+      Spanish: 'Total',
+      Arabic: 'المجموع',
+    },
+  };
+
+  const getLabel = (key: string): string => {
+    return labels[key]?.[language] || labels[key]?.['English'] || key;
+  };
+
+  // Sort orders chronologically: earliest order first, subsequent orders below it
+  const chronologicalOrders = [...(sessionOrders || [])].sort((a, b) => {
+    const timeA = new Date(a.createdAt || 0).getTime();
+    const timeB = new Date(b.createdAt || 0).getTime();
+    return timeA - timeB;
+  });
+
+  const totalItemCount = chronologicalOrders.reduce(
+    (sum, o) => sum + (o.items?.reduce((s: number, i: any) => s + (Number(i.quantity) || 1), 0) || 0),
+    0
+  );
+
+  const sessionGrandTotal = chronologicalOrders.reduce(
+    (sum, o) => sum + (Number(o.total) || 0),
+    0
+  );
 
   return (
     <div className="max-w-xl mx-auto px-3 py-6 sm:px-4 sm:py-10 w-full" id="order-timeline-wrapper">
@@ -167,6 +289,79 @@ export default function OrderTimeline({
             {thankYouMessage}
           </p>
         </div>
+
+        {/* Ordered Items List (in the customer's language, preserving chronological order sequence) */}
+        {chronologicalOrders.length > 0 && (
+          <div className="my-6 text-left bg-stone-50/90 border border-light-gray/60 rounded-2xl p-4 sm:p-5 shadow-2xs" id="customer-ordered-items-list">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-light-gray/40">
+              <span className="text-xs font-bold uppercase tracking-wider text-charcoal flex items-center gap-1.5">
+                <ShoppingBag className="w-3.5 h-3.5 text-olive" />
+                <span>{getLabel('orderedItems')}</span>
+              </span>
+              <span className="text-xs text-soft-gray font-medium">
+                {totalItemCount} {getLabel('items')}
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {chronologicalOrders.map((order: any, orderIdx: number) => {
+                const items = order.items || [];
+                if (items.length === 0) return null;
+
+                return (
+                  <div key={order.id || orderIdx} className="space-y-2">
+                    {chronologicalOrders.length > 1 && (
+                      <div className="flex items-center justify-between text-[11px] text-soft-gray font-semibold pt-2 border-t border-light-gray/30 first:border-0 first:pt-0">
+                        <span className="text-charcoal font-bold">
+                          {getLabel('orderRound')} #{order.orderNumber || orderIdx + 1}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-olive/10 text-olive font-bold">
+                          {order.status || "Pending"}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      {items.map((item: any, itemIdx: number) => {
+                        const displayName = resolveItemDisplayName(item, language, menuItems, orderedItemNames);
+                        return (
+                          <div
+                            key={item.id || itemIdx}
+                            className="flex items-center justify-between text-xs sm:text-sm py-2 px-3 rounded-xl bg-white border border-light-gray/40 shadow-2xs"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                              <span className="shrink-0 bg-olive text-white text-[11px] font-bold px-2 py-0.5 rounded-md">
+                                {item.quantity || 1}x
+                              </span>
+                              <span className="font-medium text-charcoal truncate">
+                                {displayName}
+                              </span>
+                            </div>
+                            {item.price > 0 && (
+                              <span className="shrink-0 font-semibold text-charcoal text-xs">
+                                ₹{item.price * (item.quantity || 1)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Total items and amount summary */}
+            {sessionGrandTotal > 0 && (
+              <div className="mt-4 pt-3 border-t border-light-gray/50 flex items-center justify-between text-xs font-bold text-charcoal">
+                <span>{getLabel('total')}</span>
+                <span className="text-sm font-bold text-olive">
+                  ₹{sessionGrandTotal}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Call Waiter Button below the message */}
         <div className="mt-8 pt-6 border-t border-light-gray/40 flex justify-center" id="order-call-waiter-section">
