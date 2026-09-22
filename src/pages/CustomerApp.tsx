@@ -724,12 +724,21 @@ export default function CustomerApp() {
 
       console.log("currentTable =", tableToUse);
       console.log("sessionId =", sessionId);
-      console.log("cart =", cart);
+      const sanitizedCart = cart.map((item) => ({
+        ...item,
+        menuItem: {
+          ...item.menuItem,
+          englishName:
+            item.menuItem.englishName ||
+            getLocalizedField(item.menuItem.name, "English", item.menuItem) ||
+            item.menuItem.name,
+        },
+      }));
 
       const result = await createOrder(
         {
           tableReference: tableToUse,
-          cart,
+          cart: sanitizedCart,
           total,
           sessionId,
           customerName,

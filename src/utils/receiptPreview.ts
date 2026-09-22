@@ -6,12 +6,28 @@
 
 import { splitItemsByCategory } from "./discountUtils";
 import type { AuthoritativeBill } from "../admin/services/billPreviewApi";
+import { getLocalizedField } from "../types";
 
 export interface PreviewOptions {
   splits?: any[];
   kotSections?: Record<string, string>;
   splitLabel?: string;
   authBill?: AuthoritativeBill | null;
+}
+
+function getItemEnglishName(item: any): string {
+  if (!item) return "";
+  const direct = item.englishName || item.mi_name;
+  if (direct) {
+    const suffixMatch = String(item.name || "").match(/\s*\([^)]+\)$/);
+    if (suffixMatch && !String(direct).includes(suffixMatch[0].trim())) {
+      return `${direct} ${suffixMatch[0].trim()}`;
+    }
+    return String(direct);
+  }
+  const loc = getLocalizedField(item.name, "English", item);
+  if (loc) return loc;
+  return String(item.name || "");
 }
 
 function wrapText(text: string, width: number): string[] {
@@ -93,18 +109,18 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
       lines.push("--- ADDED ---");
       for (const item of order.addedItems) {
         const qty = String(item.quantity || 1).padStart(3, " ");
-        lines.push(`${qty}  ${item.name}`);
+        lines.push(`${qty}  ${getItemEnglishName(item)}`);
       }
     } else if (order.removedItems && order.removedItems.length > 0) {
       lines.push("--- CANCELLED ---");
       for (const item of order.removedItems) {
         const qty = String(item.quantity || 1);
-        lines.push(`CANCEL: ${qty.padStart(2, " ")}  ${item.name}`);
+        lines.push(`CANCEL: ${qty.padStart(2, " ")}  ${getItemEnglishName(item)}`);
       }
     } else {
       for (const item of order.items || []) {
         const qty = String(item.quantity || 1).padStart(3, " ");
-        lines.push(`${qty}  ${item.name}`);
+        lines.push(`${qty}  ${getItemEnglishName(item)}`);
       }
     }
     if (order.description) {
@@ -151,7 +167,7 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
 
     const printItemRows = (items: any[]) => {
       for (const item of items || []) {
-        const name = String(item.name || "");
+        const name = getItemEnglishName(item);
         const qtyVal = Number(item.quantity || 1);
         const rateVal = Number(item.price || 0);
         const amtVal = Number(item.amount ?? (rateVal * qtyVal));

@@ -191,6 +191,7 @@ export interface PriceOption {
 export interface MenuItem {
   id: string;
   name: string;
+  englishName?: string;
   description: string;
   price?: number;
   priceOptions?: PriceOption[];
