@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Printer, Settings as SettingsIcon, Globe, CheckCircle2, XCircle, LayoutList, FileText } from "lucide-react";
+import { Printer, Settings as SettingsIcon, Globe, CheckCircle2, XCircle, LayoutList, FileText, X } from "lucide-react";
 import { getCategories } from "../services/categoryService";
 import { getKotSections, setKotSections, getBillSections, setBillSections } from "../../services/settingsService";
 import { translateEntireMenu } from "../services/translateMenu";
@@ -46,7 +46,15 @@ function PrinterSection({
   const [messageOk, setMessageOk] = useState(true);
 
   useEffect(() => {
-    if (status) setForm(status);
+    if (status) {
+      setForm({
+        ...EMPTY_SETTINGS,
+        ...status,
+        printerName: status.printerName ?? "",
+        ipAddress: status.ipAddress ?? "",
+        port: status.port ?? 9100,
+      });
+    }
   }, [status]);
 
   function update<K extends keyof PrinterSettings>(key: K, value: PrinterSettings[K]) {
@@ -54,13 +62,44 @@ function PrinterSection({
     setMessage("");
   }
 
+  function handleIpChange(val: string) {
+    setForm((current) => ({
+      ...current,
+      ipAddress: val,
+      // Automatically switch connectionType to network when typing an IP address
+      connectionType: "network",
+      port: current.port || 9100,
+    }));
+    setMessage("");
+  }
+
+  function handleClearIp() {
+    setForm((current) => ({ ...current, ipAddress: "" }));
+    setMessage("");
+  }
+
+  function handleConnectionChange(newType: PrinterSettings["connectionType"]) {
+    setForm((current) => ({
+      ...current,
+      connectionType: newType,
+      port: newType === "network" ? (current.port || 9100) : current.port,
+    }));
+    setMessage("");
+  }
+
   async function handleSave() {
     setSaving(true);
     setMessage("");
     try {
-      const updated = await savePrinterSettings(type, form);
+      const cleanForm: PrinterSettings = {
+        ...form,
+        printerName: (form.printerName || "").trim(),
+        ipAddress: (form.ipAddress || "").trim(),
+        port: form.connectionType === "network" ? (Number(form.port) || 9100) : form.port,
+      };
+      const updated = await savePrinterSettings(type, cleanForm);
       onSaved(type, updated);
-      setMessage("Printer settings saved.");
+      setMessage("Printer settings saved successfully.");
       setMessageOk(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save printer settings.");
@@ -105,39 +144,98 @@ function PrinterSection({
       <p className="text-gray-500 mt-2">
         {status?.configured
           ? "Configured. Status reflects whether the print connector is actually reachable, not just whether settings were saved."
-          : "Not configured yet."}
+          : "Not configured yet. Enter the printer's local network IP address below."}
       </p>
 
       <div className="grid gap-4 md:grid-cols-2 mt-6">
         <label className="text-sm font-medium">
           Printer name
-          <input value={form.printerName} onChange={(e) => update("printerName", e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2" />
+          <input
+            value={form.printerName ?? ""}
+            onChange={(e) => update("printerName", e.target.value)}
+            placeholder="e.g. POS-80C or Kitchen Printer"
+            className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+          />
         </label>
         <label className="text-sm font-medium">
           Connection type
-          <select value={form.connectionType} onChange={(e) => update("connectionType", e.target.value as PrinterSettings["connectionType"])} className="mt-1 w-full border rounded-lg px-3 py-2">
-            <option value="network">Network</option>
-            <option value="windows">USB/Windows Printer</option>
+          <select
+            value={form.connectionType}
+            onChange={(e) => handleConnectionChange(e.target.value as PrinterSettings["connectionType"])}
+            className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+          >
+            <option value="network">Network (LAN / Wi-Fi IP)</option>
+            <option value="windows">USB/Windows Printer Driver</option>
           </select>
         </label>
         <label className="text-sm font-medium">
-          IP address
-          <input value={form.ipAddress} onChange={(e) => update("ipAddress", e.target.value)} disabled={form.connectionType !== "network"} placeholder="192.168.1.50" className="mt-1 w-full border rounded-lg px-3 py-2 disabled:bg-gray-100" />
+          <div className="flex items-center justify-between">
+            <span>IP address</span>
+            {form.connectionType !== "network" && (
+              <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                Typing will switch to Network
+              </span>
+            )}
+          </div>
+          <div className="relative mt-1">
+            <input
+              type="text"
+              value={form.ipAddress ?? ""}
+              onChange={(e) => handleIpChange(e.target.value)}
+              placeholder="e.g. 192.168.0.120"
+              className="w-full border rounded-lg pl-3 pr-8 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+            />
+            {form.ipAddress && (
+              <button
+                type="button"
+                onClick={handleClearIp}
+                title="Clear IP address"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-0.5 rounded-full hover:bg-gray-100"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Local network IP address of the printer (e.g. 192.168.0.120).
+          </p>
         </label>
         <label className="text-sm font-medium">
           Port
-          <input type="number" min="1" max="65535" value={form.port ?? ""} onChange={(e) => update("port", e.target.value ? Number(e.target.value) : null)} disabled={form.connectionType !== "network"} className="mt-1 w-full border rounded-lg px-3 py-2 disabled:bg-gray-100" />
+          <input
+            type="number"
+            min="1"
+            max="65535"
+            value={form.port ?? 9100}
+            onChange={(e) => update("port", e.target.value ? Number(e.target.value) : null)}
+            placeholder="9100"
+            className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Standard port for ESC/POS network thermal printers is 9100.
+          </p>
         </label>
         <label className="text-sm font-medium">
           Paper width
-          <select value={form.paperWidth} onChange={(e) => update("paperWidth", e.target.value as PrinterSettings["paperWidth"])} className="mt-1 w-full border rounded-lg px-3 py-2">
-            <option value="80mm">80mm</option>
-            <option value="58mm">58mm</option>
+          <select
+            value={form.paperWidth}
+            onChange={(e) => update("paperWidth", e.target.value as PrinterSettings["paperWidth"])}
+            className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+          >
+            <option value="80mm">80mm (Standard Bill)</option>
+            <option value="58mm">58mm (Small Bill)</option>
           </select>
         </label>
         <label className="text-sm font-medium">
           Copies
-          <input type="number" min="1" max="5" value={form.copies} onChange={(e) => update("copies", Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-full border rounded-lg px-3 py-2" />
+          <input
+            type="number"
+            min="1"
+            max="5"
+            value={form.copies}
+            onChange={(e) => update("copies", Math.max(1, Number(e.target.value) || 1))}
+            className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-olive/30 focus:border-olive outline-none transition"
+          />
         </label>
         <label className="flex items-center gap-2 text-sm font-medium self-end pb-2">
           <input type="checkbox" checked={form.autoCut} onChange={(e) => update("autoCut", e.target.checked)} />
@@ -150,13 +248,13 @@ function PrinterSection({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mt-6">
-        <button onClick={handleSave} disabled={saving} className="bg-olive text-white px-5 py-2 rounded-xl font-semibold disabled:opacity-60">
-          {saving ? "Saving..." : "Save"}
+        <button onClick={handleSave} disabled={saving} className="bg-olive text-white px-5 py-2 rounded-xl font-semibold hover:bg-olive/90 disabled:opacity-60 transition shadow-sm">
+          {saving ? "Saving..." : "Save Settings"}
         </button>
-        <button onClick={handleTest} disabled={testing || !status?.configured} className="border border-olive text-olive px-5 py-2 rounded-xl font-semibold disabled:opacity-50">
+        <button onClick={handleTest} disabled={testing || !status?.configured} className="border border-olive text-olive hover:bg-olive/10 px-5 py-2 rounded-xl font-semibold disabled:opacity-50 transition">
           {testing ? `Testing ${title}...` : `Test ${title}`}
         </button>
-        {message && <span className={`text-sm ${messageOk ? "text-green-700" : "text-red-600"}`}>{message}</span>}
+        {message && <span className={`text-sm font-medium ${messageOk ? "text-green-700" : "text-red-600"}`}>{message}</span>}
       </div>
     </div>
   );
