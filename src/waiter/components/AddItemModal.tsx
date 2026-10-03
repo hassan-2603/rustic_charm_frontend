@@ -190,7 +190,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
             const options = getMenuPriceOptions(item);
             const name = getLocalizedField(item.name, "English");
             const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
-            const desc = getLocalizedField(item.description, "English", item);
+            const desc = getLocalizedField(item.description, "English", item) || (typeof item.description === "string" && !item.description.startsWith("{") ? item.description : "");
 
             if (options.length > 1) {
               return (
@@ -200,8 +200,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                 >
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
-                    {category && <div className="text-sm text-gray-500">{category}</div>}
-                    {desc && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{desc}</div>}
+                    {desc && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</div>}
+                    {category && <div className="text-xs text-gray-400 mt-0.5">{category}</div>}
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-gray-100">
@@ -286,8 +286,8 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
               >
                 <div>
                   <div className="font-semibold">{name}</div>
-                  {category && <div className="text-sm text-gray-500">{category}</div>}
-                  {desc && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{desc}</div>}
+                  {desc && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</div>}
+                  {category && <div className="text-xs text-gray-400 mt-0.5">{category}</div>}
                   <div className="mt-1 font-semibold">₹{singleOpt?.amount || item.price || 0}</div>
                 </div>
 

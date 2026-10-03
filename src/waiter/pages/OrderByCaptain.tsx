@@ -176,6 +176,8 @@ export default function OrderByCaptain() {
             {filteredItems.map((item) => {
               const options = getMenuPriceOptions(item);
               const name = getLocalizedField(item.name, "English");
+              const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
+              const desc = getLocalizedField(item.description, "English", item) || (typeof item.description === "string" && !item.description.startsWith("{") ? item.description : "");
 
               return (
                 <div
@@ -184,12 +186,12 @@ export default function OrderByCaptain() {
                 >
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
-                    <div className="text-xs text-gray-500 font-medium">{getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English")}</div>
-                    {item.description && getLocalizedField(item.description, "English", item) && (
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                        {getLocalizedField(item.description, "English", item)}
+                    {desc && (
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                        {desc}
                       </p>
                     )}
+                    {category && <div className="text-xs text-gray-400 font-medium mt-1">{category}</div>}
                   </div>
 
                   {options.length > 1 ? (
@@ -268,6 +270,7 @@ export default function OrderByCaptain() {
                   const options = getMenuPriceOptions(item);
                   const hasMultiple = options.length > 1;
                   const baseName = getLocalizedField(item.name, "English");
+                  const desc = getLocalizedField(item.description, "English", item) || (typeof item.description === "string" && !item.description.startsWith("{") ? item.description : "");
                   const optPrice = selectedPriceOption?.amount ?? item.price ?? 0;
 
                   return (
@@ -279,6 +282,9 @@ export default function OrderByCaptain() {
                             <span className="ml-2 text-xs font-semibold text-olive bg-olive/10 px-2 py-0.5 rounded-full border border-olive/20">
                               {getPriceOptionLabel(selectedPriceOption)}
                             </span>
+                          )}
+                          {desc && (
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{desc}</p>
                           )}
                         </div>
                         <button

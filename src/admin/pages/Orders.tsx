@@ -284,11 +284,20 @@ export default function Orders() {
           end: formatStr(new Date(y, m, 15)),
         };
       } else if (type === "15Days_2") {
-        list = get15DaySecondHalfOrders(allReportOrders, targetDate);
+        let targetMonthDate = targetDate;
+        if (targetDate.getDate() < 16) {
+          // Until the 16th comes, download the last month's 16th to end report
+          targetMonthDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0);
+        }
+        const repY = targetMonthDate.getFullYear();
+        const repM = targetMonthDate.getMonth();
+        const repLastDay = new Date(repY, repM + 1, 0).getDate();
+
+        list = get15DaySecondHalfOrders(allReportOrders, targetMonthDate);
         prefix = "15Days_16th_to_End";
         rangeOverride = {
-          start: formatStr(new Date(y, m, 16)),
-          end: formatStr(new Date(y, m, lastDay)),
+          start: formatStr(new Date(repY, repM, 16)),
+          end: formatStr(new Date(repY, repM, repLastDay)),
         };
       } else if (type === "Monthly") {
         list = getMonthlyOrders(allReportOrders, targetDate);
