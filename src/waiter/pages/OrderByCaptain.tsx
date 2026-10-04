@@ -14,6 +14,57 @@ type SelectedItem = {
   selectedPriceOption: PriceOption;
 };
 
+function getWaiterEnglishDescription(item: any): string {
+  if (!item) return "";
+
+  if (typeof item.englishDescription === "string" && item.englishDescription.trim()) {
+    const val = item.englishDescription.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
+  if (typeof item.description === "string" && item.description.trim()) {
+    const val = item.description.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
+  if (typeof item.desc === "string" && item.desc.trim()) {
+    const val = item.desc.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
+  if (typeof item.metadata?.description === "string" && item.metadata.description.trim()) {
+    const val = item.metadata.description.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
+  if (typeof item.translations?.en?.description === "string" && item.translations.en.description.trim()) {
+    return item.translations.en.description.trim();
+  }
+
+  for (const rawSource of [item.description, item.metadata?.description]) {
+    let raw = rawSource;
+    if (typeof raw === "string" && raw.trim().startsWith("{")) {
+      try {
+        raw = JSON.parse(raw);
+      } catch {}
+    }
+    if (raw && typeof raw === "object") {
+      const enVal = raw.English || raw.english || raw.en || raw.EN || raw.description || raw.desc;
+      if (typeof enVal === "string" && enVal.trim() && enVal !== "[object Object]") {
+        return enVal.trim();
+      }
+    }
+  }
+
+  const loc = getLocalizedField(item.description, "English", item);
+  const itemName = typeof item.name === "string" ? item.name.trim() : "";
+  if (loc && loc !== itemName && loc !== "[object Object]") {
+    return loc;
+  }
+
+  return "";
+}
+
 export default function OrderByCaptain() {
   const waiter = JSON.parse(localStorage.getItem("waiter") || "{}");
   const [searchParams] = useSearchParams();
@@ -177,7 +228,7 @@ export default function OrderByCaptain() {
               const options = getMenuPriceOptions(item);
               const name = getLocalizedField(item.name, "English");
               const category = getLocalizedCategory(item.category, "English") || getLocalizedField(item.category, "English");
-              const desc = getLocalizedField(item.description, "English", item) || (typeof item.description === "string" && !item.description.startsWith("{") ? item.description : "");
+              const desc = getWaiterEnglishDescription(item);
 
               return (
                 <div
@@ -270,7 +321,7 @@ export default function OrderByCaptain() {
                   const options = getMenuPriceOptions(item);
                   const hasMultiple = options.length > 1;
                   const baseName = getLocalizedField(item.name, "English");
-                  const desc = getLocalizedField(item.description, "English", item) || (typeof item.description === "string" && !item.description.startsWith("{") ? item.description : "");
+                  const desc = getWaiterEnglishDescription(item);
                   const optPrice = selectedPriceOption?.amount ?? item.price ?? 0;
 
                   return (

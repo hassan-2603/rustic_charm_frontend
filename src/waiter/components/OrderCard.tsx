@@ -276,7 +276,6 @@ export default function OrderCard({
               state={kotState}
               onPrint={() => onPrintKOT(order)}
               onRetry={onRetryKOT ? () => onRetryKOT(order) : undefined}
-              onPreview={onPreview ? () => onPreview(order, "KOT") : undefined}
             />
           )}
 
