@@ -28,6 +28,11 @@ function getWaiterEnglishDescription(item: any): string {
     if (val !== "[object Object]" && !val.startsWith("{")) return val;
   }
 
+  if (typeof item.english_description === "string" && item.english_description.trim()) {
+    const val = item.english_description.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
   if (typeof item.description === "string" && item.description.trim()) {
     const val = item.description.trim();
     if (val !== "[object Object]" && !val.startsWith("{")) return val;
@@ -43,8 +48,14 @@ function getWaiterEnglishDescription(item: any): string {
     if (val !== "[object Object]" && !val.startsWith("{")) return val;
   }
 
-  if (typeof item.translations?.en?.description === "string" && item.translations.en.description.trim()) {
-    return item.translations.en.description.trim();
+  if (typeof item.metadata?.desc === "string" && item.metadata.desc.trim()) {
+    const val = item.metadata.desc.trim();
+    if (val !== "[object Object]" && !val.startsWith("{")) return val;
+  }
+
+  const transEn = item.translations?.en || item.translations?.English || item.translations?.EN;
+  if (typeof transEn?.description === "string" && transEn.description.trim()) {
+    return transEn.description.trim();
   }
 
   for (const rawSource of [item.description, item.metadata?.description]) {
@@ -252,7 +263,6 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                   <div>
                     <div className="font-semibold text-gray-900">{name}</div>
                     {desc && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</div>}
-                    {category && <div className="text-xs text-gray-400 mt-0.5">{category}</div>}
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-gray-100">
@@ -338,7 +348,6 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                 <div>
                   <div className="font-semibold">{name}</div>
                   {desc && <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</div>}
-                  {category && <div className="text-xs text-gray-400 mt-0.5">{category}</div>}
                   <div className="mt-1 font-semibold">₹{singleOpt?.amount || item.price || 0}</div>
                 </div>
 
