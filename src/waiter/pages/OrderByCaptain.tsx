@@ -5,13 +5,14 @@ import { getMenuItems } from "../../services/customerApi";
 import { listenTables, createCaptainOrder } from "../services/waiterService";
 import { printKOT } from "../services/printerService";
 import { getLocalizedField, getLocalizedCategory, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
-import OrderDescriptionModal from "../../components/OrderDescriptionModal";
+import ItemNoteModal from "../../components/ItemNoteModal";
 
 type SelectedItem = {
   key: string;
   item: any;
   quantity: number;
   selectedPriceOption: PriceOption;
+  note?: string;
 };
 
 function getWaiterEnglishDescription(item: any): string {
@@ -88,8 +89,8 @@ export default function OrderByCaptain() {
   const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [placing, setPlacing] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
-  const [showDescriptionBox, setShowDescriptionBox] = useState(false);
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  const [noteModalTarget, setNoteModalTarget] = useState<{ item: any; key?: string } | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
@@ -110,18 +111,37 @@ export default function OrderByCaptain() {
     0
   );
 
+  function handleSaveNote(note: string) {
+    if (!noteModalTarget) return;
+    const { item, key } = noteModalTarget;
+    setItemNotes((prev) => ({ ...prev, [item.id]: note }));
+    if (key) {
+      setSelected((curr) => curr.map((s) => (s.key === key ? { ...s, note } : s)));
+    } else {
+      setSelected((curr) => {
+        const hasItem = curr.some((s) => s.item.id === item.id);
+        if (hasItem) {
+          return curr.map((s) => (s.item.id === item.id ? { ...s, note } : s));
+        }
+        return curr;
+      });
+    }
+    setNoteModalTarget(null);
+  }
+
   function addItem(item: any, option?: PriceOption) {
     const opt = option || getMenuPriceOptions(item)[0];
+    const savedNote = itemNotes[item.id] || "";
     const key = `${item.id}-${opt.quantity}-${opt.amount}-${opt.unit || ""}`;
     setPlacedOrderId(null);
     setSelected((current) => {
       const existing = current.find((entry) => entry.key === key);
       if (existing) {
         return current.map((entry) =>
-          entry.key === key ? { ...entry, quantity: entry.quantity + 1 } : entry
+          entry.key === key ? { ...entry, quantity: entry.quantity + 1, note: existing.note || savedNote } : entry
         );
       }
-      return [...current, { key, item, quantity: 1, selectedPriceOption: opt }];
+      return [...current, { key, item, quantity: 1, selectedPriceOption: opt, note: savedNote }];
     });
   }
 
@@ -145,24 +165,27 @@ export default function OrderByCaptain() {
         tableId: table.id,
         waiterId: waiter.id,
         total,
-        items: selected.map(({ item, quantity, selectedPriceOption }) => {
+        items: selected.map(({ item, quantity, selectedPriceOption, note }) => {
           const options = getMenuPriceOptions(item);
           const baseName = getLocalizedField(item.name, "English");
           const name =
             options.length > 1 && selectedPriceOption
               ? `${baseName} (${getPriceOptionLabel(selectedPriceOption)})`
               : baseName;
+          const itemNote = note?.trim() || itemNotes[item.id]?.trim() || undefined;
           return {
             menuItemId: item.id,
             name,
             quantity,
             price: selectedPriceOption?.amount ?? item.price ?? 0,
+            note: itemNote,
+            specialInstructions: itemNote,
           };
         }),
-        description: description.trim() ? description.trim() : undefined,
       });
       await printKOT(response.id, waiter?.id);
       setSelected([]);
+      setItemNotes({});
       setPlacedOrderId(null);
       alert("Order placed and KOT sent to printer!");
     } catch (error) {
@@ -300,6 +323,26 @@ export default function OrderByCaptain() {
                       <span className="text-xs font-semibold text-olive uppercase tracking-wider">+ Add</span>
                     </button>
                   )}
+
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNoteModalTarget({ item })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+                        itemNotes[item.id]
+                          ? "border-olive bg-olive/10 text-olive"
+                          : "border-gray-200 text-gray-700 hover:border-olive hover:text-olive bg-gray-50"
+                      }`}
+                    >
+                      <FileText size={13} />
+                      Note
+                    </button>
+                    {itemNotes[item.id] && (
+                      <span className="text-xs font-medium text-olive truncate text-right flex-1">
+                        Note: {itemNotes[item.id]}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -327,7 +370,7 @@ export default function OrderByCaptain() {
           {!isCollapsed && (
             <>
               <div className="mt-2 lg:mt-4 space-y-3 overflow-y-auto pr-2 no-scrollbar">
-                {selected.map(({ key, item, quantity, selectedPriceOption }) => {
+                {selected.map(({ key, item, quantity, selectedPriceOption, note }) => {
                   const options = getMenuPriceOptions(item);
                   const hasMultiple = options.length > 1;
                   const baseName = getLocalizedField(item.name, "English");
@@ -344,6 +387,19 @@ export default function OrderByCaptain() {
                               {getPriceOptionLabel(selectedPriceOption)}
                             </span>
                           )}
+                          {note ? (
+                            <div className="text-xs font-medium text-olive mt-0.5">
+                              Note: {note}
+                            </div>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setNoteModalTarget({ item, key })}
+                            className="text-xs text-olive hover:underline flex items-center gap-1 cursor-pointer mt-1"
+                          >
+                            <FileText size={11} />
+                            {note ? "Edit Note" : "Note"}
+                          </button>
                           {desc && (
                             <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{desc}</p>
                           )}
@@ -388,36 +444,7 @@ export default function OrderByCaptain() {
                   <span>₹{total}</span>
                 </div>
 
-                {description.trim() && (
-                  <div className="mt-3 p-2.5 bg-olive/10 border border-olive/20 rounded-xl text-xs flex items-center justify-between text-olive">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      <FileText size={14} className="shrink-0" />
-                      <span className="truncate font-medium">Note: {description}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDescription("")}
-                      className="text-red-500 hover:text-red-700 font-bold ml-2 shrink-0 cursor-pointer"
-                      title="Remove note"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowDescriptionBox(true)}
-                    className={`w-full py-3 px-3 rounded-xl font-semibold border-2 transition flex items-center justify-center gap-1.5 text-sm cursor-pointer ${
-                      description.trim()
-                        ? "border-olive bg-olive/10 text-olive"
-                        : "border-gray-300 text-gray-700 hover:border-olive hover:text-olive hover:bg-olive/5"
-                    }`}
-                  >
-                    <FileText size={16} />
-                    {description.trim() ? "Edit Note (Saved)" : "Add Description"}
-                  </button>
+                <div className="mt-4">
                   <button
                     onClick={placeOrder}
                     disabled={placing}
@@ -432,11 +459,18 @@ export default function OrderByCaptain() {
         </section>
       </div>
 
-      <OrderDescriptionModal
-        isOpen={showDescriptionBox}
-        initialDescription={description}
-        onSave={(savedDesc) => setDescription(savedDesc)}
-        onClose={() => setShowDescriptionBox(false)}
+      <ItemNoteModal
+        isOpen={!!noteModalTarget}
+        itemName={noteModalTarget ? getLocalizedField(noteModalTarget.item.name, "English") : ""}
+        initialNote={
+          noteModalTarget
+            ? (noteModalTarget.key
+                ? selected.find((s) => s.key === noteModalTarget.key)?.note
+                : itemNotes[noteModalTarget.item.id]) || ""
+            : ""
+        }
+        onSave={handleSaveNote}
+        onClose={() => setNoteModalTarget(null)}
       />
     </div>
   );

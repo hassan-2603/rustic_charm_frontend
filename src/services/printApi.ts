@@ -94,11 +94,11 @@ export function createPrintApi(request: Requester) {
       return { job: null, ok: true, message: `No items to print for ${type === "BILL" ? "Bill" : "KOT"}` };
     }
 
-    // Wait for all section jobs concurrently so multi-section printing is fast
-    const finalJobs = await Promise.all(jobs.map((j) => waitForJob(j.id)));
-    const failedJob = finalJobs.find((fj) => fj.status !== "PRINTED");
-    const representativeJob = failedJob || finalJobs[finalJobs.length - 1];
-
+    // Return immediately once the job is reliably created and queued in the backend queue.
+    // The restaurant's print connector automatically picks up pending jobs within ~300ms.
+    // Awaiting physical print completion and cutter blade retraction here previously blocked
+    // the UI button for 10-15 seconds.
+    const representativeJob = jobs[jobs.length - 1];
     return interpretJob(representativeJob, type);
   }
 
@@ -109,13 +109,12 @@ export function createPrintApi(request: Requester) {
     } catch (error) {
       return { job: null, ok: false, message: error instanceof Error ? error.message : "Unable to retry the print job." };
     }
-    const finalJob = await waitForJob(job.id);
-    return interpretJob(finalJob, type);
+    return interpretJob(job, type);
   }
 
   function interpretJob(job: PrintJob, type: "BILL" | "KOT"): PrintOutcome {
     const label = type === "BILL" ? "Bill" : "KOT";
-    if (job.status === "PRINTED") {
+    if (job.status === "PRINTED" || job.status === "PENDING" || job.status === "PROCESSING") {
       return { job, ok: true, message: `${label} sent to printer` };
     }
     return { job, ok: false, message: job.errorMessage || `Unable to print ${label}` };

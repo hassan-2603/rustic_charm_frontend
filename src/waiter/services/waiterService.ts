@@ -75,7 +75,7 @@ export function listenTables(callback: (tables: any[]) => void) {
 export async function createCaptainOrder(order: {
   tableId: string;
   waiterId: string;
-  items: Array<{ menuItemId: string; name: string; quantity: number; price: number }>;
+  items: Array<{ menuItemId: string; name: string; quantity: number; price: number; note?: string; specialInstructions?: string }>;
   total: number;
   description?: string;
 }) {
@@ -207,7 +207,7 @@ export async function updateOrderDiscount(orderId: string, discountData: Record<
 
 export async function addOrderItems(
   orderId: string,
-  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>,
+  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number; note?: string; specialInstructions?: string }>,
   description?: string
 ) {
   return requestAdminJson(`/orders/${orderId}/items`, {

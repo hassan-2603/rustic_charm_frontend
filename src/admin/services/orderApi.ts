@@ -78,7 +78,7 @@ export async function updateOrder(id: string, updates: any) {
 export async function createAdminOrder(order: {
   tableId: string;
   waiterId: string;
-  items: Array<{ menuItemId: string; name: string; quantity: number; price: number }>;
+  items: Array<{ menuItemId: string; name: string; quantity: number; price: number; note?: string; specialInstructions?: string }>;
   total: number;
   description?: string;
 }) {
@@ -101,7 +101,7 @@ export async function updateOrderItemPrices(orderId: string, updates: { id: stri
 
 export async function addOrderItems(
   orderId: string,
-  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number }>,
+  items: Array<{ menuItemId?: string; name: string; quantity: number; price: number; note?: string; specialInstructions?: string }>,
   description?: string
 ) {
   return await requestAdminJson(`${BASE}/${orderId}/items`, {

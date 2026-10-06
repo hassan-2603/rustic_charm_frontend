@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, X, Plus, Minus, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Search, X, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { getMenuItems } from "../services/menuService";
 import { addOrderItems } from "../services/orderApi";
 import { printKOT } from "../services/printerService";
 import { getLocalizedCategory, getLocalizedField, getMenuPriceOptions, getPriceOptionLabel, type PriceOption } from "../../types";
-import OrderDescriptionModal from "../../components/OrderDescriptionModal";
+import ItemNoteModal from "../../components/ItemNoteModal";
 
 type Props = {
   open: boolean;
@@ -18,6 +18,7 @@ type SelectedItem = {
   item: any;
   quantity: number;
   selectedPriceOption: PriceOption;
+  note?: string;
 };
 
 export default function AddItemModal({ open, order, onClose, onItemAdded }: Props) {
@@ -26,12 +27,11 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
   const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [adding, setAdding] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [description, setDescription] = useState(order?.description || "");
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  const [noteModalTarget, setNoteModalTarget] = useState<{ item: any; key?: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setDescription(order?.description || "");
     getMenuItems().then(setMenuItems).catch(console.error);
   }, [open, order]);
 
@@ -39,6 +39,7 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
     if (!open) {
       setSearch("");
       setSelected([]);
+      setItemNotes({});
     }
   }, [open]);
 
@@ -52,18 +53,48 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
 
   if (!open || !order) return null;
 
+  function saveItemNote(note: string) {
+    if (!noteModalTarget) return;
+    const { item, key } = noteModalTarget;
+    setItemNotes((prev) => {
+      const next = { ...prev };
+      if (note) {
+        next[item.id] = note;
+      } else {
+        delete next[item.id];
+      }
+      return next;
+    });
+
+    if (key) {
+      setSelected((curr) =>
+        curr.map((s) => (s.key === key ? { ...s, note } : s))
+      );
+    } else {
+      setSelected((curr) => {
+        const hasItem = curr.some((s) => s.item.id === item.id);
+        if (hasItem) {
+          return curr.map((s) => (s.item.id === item.id ? { ...s, note } : s));
+        }
+        return curr;
+      });
+    }
+    setNoteModalTarget(null);
+  }
+
   function updateQuantity(item: any, option: PriceOption, amount: number) {
     const opt = option || getMenuPriceOptions(item)[0];
+    const savedNote = itemNotes[item.id] || "";
     const key = `${item.id}-${opt.quantity}-${opt.amount}-${opt.unit || ""}`;
     setSelected((current) => {
       const existing = current.find((entry) => entry.key === key);
       if (existing) {
         return current
-          .map((entry) => (entry.key === key ? { ...entry, quantity: entry.quantity + amount } : entry))
+          .map((entry) => (entry.key === key ? { ...entry, quantity: entry.quantity + amount, note: existing.note || savedNote } : entry))
           .filter((entry) => entry.quantity > 0);
       }
       if (amount > 0) {
-        return [...current, { key, item, quantity: amount, selectedPriceOption: opt }];
+        return [...current, { key, item, quantity: amount, selectedPriceOption: opt, note: savedNote }];
       }
       return current;
     });
@@ -78,13 +109,14 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
     if (selected.length === 0) return;
     setAdding(true);
     try {
-      const itemsPayload = selected.map(({ item, quantity, selectedPriceOption }) => {
+      const itemsPayload = selected.map(({ item, quantity, selectedPriceOption, note }) => {
         const options = getMenuPriceOptions(item);
         const baseName = getLocalizedField(item.name, "English");
         const name =
           options.length > 1 && selectedPriceOption
             ? `${baseName} (${getPriceOptionLabel(selectedPriceOption)})`
             : baseName;
+        const itemNote = note?.trim() || itemNotes[item.id]?.trim() || undefined;
         return {
           menuItemId: item.id,
           name,
@@ -92,12 +124,15 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
           price: selectedPriceOption?.amount ?? item.price ?? 0,
           categoryId: item.categoryId || (item as any).category_id || "",
           category: getLocalizedCategory((item as any).category, "English") || getLocalizedField((item as any).category, "English") || (item as any).category_name || "",
+          note: itemNote,
+          specialInstructions: itemNote,
         };
       });
-      const updated = await addOrderItems(order.id, itemsPayload, description);
-      await printKOT(order.id, { action: "ADD", items: itemsPayload, description });
+      const updated = await addOrderItems(order.id, itemsPayload);
+      await printKOT(order.id, { action: "ADD", items: itemsPayload });
       onItemAdded(updated);
       setSelected([]);
+      setItemNotes({});
       onClose();
     } catch (error) {
       alert(error instanceof Error ? error.message : "Unable to add items to order.");
@@ -214,6 +249,25 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                       })}
                     </div>
                   </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setNoteModalTarget({ item })}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1 cursor-pointer ${
+                        itemNotes[item.id]
+                          ? "border-olive bg-olive/10 text-olive"
+                          : "border-gray-200 text-gray-700 hover:border-olive hover:text-olive bg-gray-50"
+                      }`}
+                    >
+                      <FileText size={12} />
+                      Note
+                    </button>
+                    {itemNotes[item.id] && (
+                      <span className="text-xs font-medium text-olive truncate max-w-[200px]">
+                        Note: {itemNotes[item.id]}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             }
@@ -238,36 +292,58 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
                   <div className="mt-1 font-semibold">₹{singleOpt?.amount || item.price || 0}</div>
                 </div>
 
-                <div className="flex items-center bg-white border rounded-lg overflow-hidden shrink-0 shadow-sm">
-                  {currentObjQuantity > 0 ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item, singleOpt, -1)}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold cursor-pointer"
-                      >
-                        −
-                      </button>
-                      <div className="px-4 font-semibold min-w-[2.5rem] text-center">
-                        {currentObjQuantity}
-                      </div>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center bg-white border rounded-lg overflow-hidden shrink-0 shadow-sm">
+                    {currentObjQuantity > 0 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item, singleOpt, -1)}
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold cursor-pointer"
+                        >
+                          −
+                        </button>
+                        <div className="px-4 font-semibold min-w-[2.5rem] text-center">
+                          {currentObjQuantity}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item, singleOpt, 1)}
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold cursor-pointer"
+                        >
+                          +
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
                         onClick={() => updateQuantity(item, singleOpt, 1)}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold cursor-pointer"
+                        className="px-4 py-1.5 text-olive hover:bg-olive hover:text-white font-semibold transition cursor-pointer"
                       >
-                        +
+                        Add
                       </button>
-                    </>
-                  ) : (
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item, singleOpt, 1)}
-                      className="px-4 py-1.5 text-olive hover:bg-olive hover:text-white font-semibold transition cursor-pointer"
+                      onClick={() => setNoteModalTarget({ item })}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1 cursor-pointer ${
+                        itemNotes[item.id]
+                          ? "border-olive bg-olive/10 text-olive"
+                          : "border-gray-200 text-gray-700 hover:border-olive hover:text-olive bg-gray-50"
+                      }`}
                     >
-                      Add
+                      <FileText size={12} />
+                      Note
                     </button>
-                  )}
+                    {itemNotes[item.id] && (
+                      <span className="text-xs font-medium text-olive truncate max-w-[120px]">
+                        Note: {itemNotes[item.id]}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -278,23 +354,6 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         </div>
 
         <div className="p-5 border-t bg-white shrink-0">
-          {description.trim() && (
-            <div className="mb-3 p-2.5 bg-olive/10 border border-olive/20 rounded-xl text-xs flex items-center justify-between text-olive">
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <FileText size={14} className="shrink-0" />
-                <span className="truncate font-medium">Note: {description}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDescription("")}
-                className="text-red-500 hover:text-red-700 font-bold ml-2 shrink-0 cursor-pointer"
-                title="Remove note"
-              >
-                ×
-              </button>
-            </div>
-          )}
-
           <div className="sm:hidden flex justify-between items-center mb-4">
             <span className="font-bold text-gray-700">{selected.length} Items Selected</span>
             <button
@@ -318,18 +377,6 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
 
               <div className="flex flex-wrap sm:flex-nowrap gap-2.5 sm:gap-3 items-center">
                 <button
-                  type="button"
-                  onClick={() => setShowDescriptionModal(true)}
-                  className={`border-2 px-4 py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-1.5 text-sm flex-1 sm:flex-none cursor-pointer ${
-                    description.trim()
-                      ? "border-olive bg-olive/10 text-olive"
-                      : "border-gray-300 text-gray-700 hover:border-olive hover:text-olive hover:bg-olive/5"
-                  }`}
-                >
-                  <FileText size={16} />
-                  {description.trim() ? "Edit Note (Saved)" : "Add Description"}
-                </button>
-                <button
                   onClick={onClose}
                   className="border px-4 py-2.5 rounded-xl font-semibold hover:bg-gray-50 text-sm flex-1 sm:flex-none cursor-pointer"
                 >
@@ -348,12 +395,19 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         </div>
       </div>
 
-      <OrderDescriptionModal
-        isOpen={showDescriptionModal}
-        initialDescription={description}
-        onSave={(savedDesc) => setDescription(savedDesc)}
-        onClose={() => setShowDescriptionModal(false)}
-      />
+      {noteModalTarget && (
+        <ItemNoteModal
+          isOpen={!!noteModalTarget}
+          itemName={getLocalizedField(noteModalTarget.item.name, "English")}
+          initialNote={
+            (noteModalTarget.key && selected.find((s) => s.key === noteModalTarget.key)?.note) ||
+            itemNotes[noteModalTarget.item.id] ||
+            ""
+          }
+          onSave={saveItemNote}
+          onClose={() => setNoteModalTarget(null)}
+        />
+      )}
     </div>
   );
 }
