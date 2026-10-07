@@ -458,22 +458,6 @@ export default function AddItemModal({ open, order, onClose, onItemAdded }: Prop
         </div>
 
         <div className="p-5 border-t bg-white shrink-0">
-          {description.trim() && (
-            <div className="mb-3 p-2.5 bg-olive/10 border border-olive/20 rounded-xl text-xs flex items-center justify-between text-olive">
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                <FileText size={14} className="shrink-0" />
-                <span className="truncate font-medium">Note: {description}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDescription("")}
-                className="text-red-500 hover:text-red-700 font-bold ml-2 shrink-0 cursor-pointer"
-                title="Remove note"
-              >
-                ×
-              </button>
-            </div>
-          )}
 
           <div className="sm:hidden flex justify-between items-center mb-4">
             <span className="font-bold text-gray-700">{selected.length} Items Selected</span>

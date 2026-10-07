@@ -114,6 +114,9 @@ export function createPrintApi(request: Requester) {
 
   function interpretJob(job: PrintJob, type: "BILL" | "KOT"): PrintOutcome {
     const label = type === "BILL" ? "Bill" : "KOT";
+    if (!job) {
+      return { job: null, ok: false, message: `Unable to print ${label}` };
+    }
     if (job.status === "PRINTED" || job.status === "PENDING" || job.status === "PROCESSING") {
       return { job, ok: true, message: `${label} sent to printer` };
     }
