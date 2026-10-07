@@ -62,9 +62,10 @@ function getTodayBizDate(): Date {
   return bizDate;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function formatStr(date: Date) {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}-${date.getFullYear()}`;
+  return `${String(date.getDate()).padStart(2, '0')}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
 }
 
 function isEligibleForReport(order: any): boolean {
@@ -128,6 +129,9 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [downloading, setDownloading] = useState(false);
   const [downloadingFeedback, setDownloadingFeedback] = useState(false);
+
+  const todayBiz = getTodayBizDate();
+  const prevMonthName = MONTHS[(todayBiz.getMonth() + 11) % 12];
 
   // Active unarchived orders on screen
   useEffect(() => {
@@ -246,7 +250,7 @@ export default function Orders() {
     }
   }
 
-  async function handleDownloadReport(type: "Daily" | "15Days_1" | "15Days_2" | "Monthly") {
+  async function handleDownloadReport(type: "Daily" | "15Days_1" | "15Days_2" | "Monthly" | "LastMonth") {
     setDownloading(true);
     try {
       // ALWAYS load full report orders (including soft-archived) so no orders are ever lost
@@ -305,6 +309,18 @@ export default function Orders() {
         rangeOverride = {
           start: formatStr(new Date(y, m, 1)),
           end: formatStr(new Date(y, m, lastDay)),
+        };
+      } else if (type === "LastMonth") {
+        const lastMonthDate = new Date(y, m - 1, 1);
+        const lmY = lastMonthDate.getFullYear();
+        const lmM = lastMonthDate.getMonth();
+        const lmLastDay = new Date(lmY, lmM + 1, 0).getDate();
+
+        list = getMonthlyOrders(allReportOrders, lastMonthDate);
+        prefix = `Last_Month_${MONTHS[lmM]}_Report`;
+        rangeOverride = {
+          start: formatStr(new Date(lmY, lmM, 1)),
+          end: formatStr(new Date(lmY, lmM, lmLastDay)),
         };
       }
 
@@ -379,9 +395,18 @@ export default function Orders() {
           onClick={() => handleDownloadReport("Monthly")}
           disabled={downloading}
           className="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
-          title="Download full month report (1st to end)"
+          title="Download current full month report (1st to end)"
         >
           <span>🗓️</span> Download Monthly Excel
+        </button>
+
+        <button
+          onClick={() => handleDownloadReport("LastMonth")}
+          disabled={downloading}
+          className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title={`Download previous month report (1st to end of ${prevMonthName})`}
+        >
+          <span>📑</span> Download Last Month Excel ({prevMonthName})
         </button>
 
         <button
