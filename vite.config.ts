@@ -18,11 +18,11 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
         '/api': {
-          target: process.env.VITE_API_BASE_URL || 'https://rustic-charm-backend.onrender.com',
+          target: process.env.VITE_API_BASE_URL || 'https://rustic-charm-backend-6oag.onrender.com',
           changeOrigin: true,
         },
         '/images': {
-          target: process.env.VITE_API_BASE_URL || 'https://rustic-charm-backend.onrender.com',
+          target: process.env.VITE_API_BASE_URL || 'https://rustic-charm-backend-6oag.onrender.com',
           changeOrigin: true,
         },
       },
