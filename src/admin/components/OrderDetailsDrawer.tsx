@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Coins,
   User,
+  Calendar,
 } from "lucide-react";
 import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables, freeTable } from "../services/tableApi";
@@ -29,6 +30,7 @@ import { fetchBillPreview, type AuthoritativeBill } from "../services/billPrevie
 
 import StatusBadge from "./StatusBadge";
 import OrderTimerBadge from "../../components/OrderTimerBadge";
+import { parseOrderDate } from "../../utils/orderTimer";
 
 type Props = {
   open: boolean;
@@ -335,7 +337,36 @@ export default function OrderDetailsDrawer({
   }
 
   const created =
-    order.createdAt?.toDate?.() || new Date();
+    parseOrderDate(order.createdAt) ||
+    (order.createdAt ? new Date(order.createdAt) : null);
+
+  const acceptedDate =
+    parseOrderDate(order.acceptedAt) ||
+    (order.acceptedAt ? new Date(order.acceptedAt) : null);
+
+  const completedDate =
+    parseOrderDate(order.completedAt) ||
+    (order.completedAt ? new Date(order.completedAt) : null);
+
+  const formattedCreatedDate = created
+    ? created.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
+
+  const formattedCreatedTime = created
+    ? created.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "";
+
+  const formattedCreated = created
+    ? `${formattedCreatedDate}, ${formattedCreatedTime}`
+    : "--";
 
   const total = order.total;
 
@@ -442,6 +473,11 @@ export default function OrderDetailsDrawer({
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-xs">
                 <User size={13} className="text-amber-700" />
                 <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200 shadow-xs">
+                <Calendar size={13} className="text-gray-500" />
+                <span>{formattedCreated}</span>
               </span>
               <span className="text-gray-300">•</span>
               <OrderTimerBadge order={order} showSourceLabel />
@@ -743,6 +779,18 @@ export default function OrderDetailsDrawer({
               </div>
 
               <div className="flex items-center gap-3">
+                <Calendar size={18} className="text-olive" />
+                <div>
+                  <p className="text-sm text-gray-500">
+                    Order Date & Time
+                  </p>
+                  <p className="font-semibold text-gray-900">
+                    {formattedCreated}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
 
                 <Clock size={18} className="text-olive" />
 
@@ -756,10 +804,13 @@ export default function OrderDetailsDrawer({
                     <OrderTimerBadge order={order} showSourceLabel />
                   </div>
 
-                  <p className="text-xs text-gray-400 mt-1">
-                    Created: {created.toLocaleString()}
-                    {order.acceptedAt && (
-                      <> • Accepted: {new Date(order.acceptedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Created: {formattedCreated}
+                    {acceptedDate && (
+                      <> • Accepted: {acceptedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}</>
+                    )}
+                    {completedDate && (
+                      <> • Completed: {completedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}</>
                     )}
                   </p>
 

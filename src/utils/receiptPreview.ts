@@ -7,6 +7,7 @@
 import { splitItemsByCategory } from "./discountUtils";
 import type { AuthoritativeBill } from "../admin/services/billPreviewApi";
 import { getLocalizedField } from "../types";
+import { parseOrderDate } from "./orderTimer";
 
 export interface PreviewOptions {
   splits?: any[];
@@ -72,6 +73,7 @@ function resolveSection(item: any, config: Record<string, string> = {}): string 
 }
 
 export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options?: PreviewOptions): string {
+  const orderDate = parseOrderDate(order.createdAt) || new Date();
   const lines: string[] = [];
   lines.push("RUSTIC CHARM");
   lines.push("RESTRO BAR AND CAFE BY DAAOM");
@@ -93,7 +95,7 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     lines.push(`Table: ${order.tableLabel || order.tableReference || order.tableNumber || "--"}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push(
-      `Date: ${new Date().toLocaleString("en-IN", {
+      `Date: ${orderDate.toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "2-digit",
@@ -135,7 +137,7 @@ export function buildSinglePreviewText(order: any, type: "BILL" | "KOT", options
     if (order.customerName) lines.push(`Customer: ${order.customerName}`);
     lines.push(`Waiter: ${order.waiterName || "--"}`);
     lines.push(
-      `Date: ${new Date().toLocaleString("en-IN", {
+      `Date: ${orderDate.toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "2-digit",

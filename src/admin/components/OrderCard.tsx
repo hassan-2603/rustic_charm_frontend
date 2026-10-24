@@ -4,10 +4,12 @@ import {
   UtensilsCrossed,
   Receipt,
   User,
+  Calendar,
 } from "lucide-react";
 
 import StatusBadge from "./StatusBadge";
 import OrderTimerBadge from "../../components/OrderTimerBadge";
+import { parseOrderDate } from "../../utils/orderTimer";
 
 type Props = {
   order: any;
@@ -19,8 +21,24 @@ export default function OrderCard({
   onView,
 }: Props) {
   const created =
-    order.createdAt?.toDate?.() ||
-    (order.createdAt ? new Date(order.createdAt) : new Date());
+    parseOrderDate(order.createdAt) ||
+    (order.createdAt ? new Date(order.createdAt) : null);
+
+  const formattedDate = created
+    ? created.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "--";
+
+  const formattedTime = created
+    ? created.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "--";
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
@@ -45,6 +63,11 @@ export default function OrderCard({
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200 shadow-xs">
                 <User size={12} className="text-amber-700" />
                 <span>Waiter: {order.waiterName || order.waiterId || "Self-ordered"}</span>
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 bg-gray-50 px-2.5 py-0.5 rounded-md border border-gray-200 shadow-xs">
+                <Calendar size={12} className="text-gray-500" />
+                <span>{formattedDate}, {formattedTime}</span>
               </span>
             </div>
             <div className="mt-2 text-sm text-gray-600">
@@ -124,11 +147,8 @@ export default function OrderCard({
                 <OrderTimerBadge order={order} variant="compact" className="text-sm font-semibold" />
               </div>
 
-              <p className="text-[11px] text-gray-400">
-                {created.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                {formattedDate} • {formattedTime}
               </p>
 
             </div>
