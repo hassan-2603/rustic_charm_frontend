@@ -9,7 +9,7 @@ export function listenOrders(callback: (orders: any[]) => void) {
 
   const load = async () => {
     try {
-      const data = await requestAdminJson(`${BASE}?includeCompleted=true`);
+      const data = await requestAdminJson(`${BASE}`);
       if (active) callback(data);
     } catch (err) {
       console.error("Error loading admin orders:", err);
@@ -23,6 +23,22 @@ export function listenOrders(callback: (orders: any[]) => void) {
     active = false;
     clearInterval(interval);
   };
+}
+
+export async function getLastWeekOrders(startDate?: string, endDate?: string): Promise<any[]> {
+  try {
+    const params = new URLSearchParams({
+      includeCompleted: "true",
+      forReports: "true",
+    });
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    const data = await requestAdminJson(`${BASE}?${params.toString()}`);
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Error loading last week orders:", err);
+    return [];
+  }
 }
 
 export async function getReportOrders(): Promise<any[]> {

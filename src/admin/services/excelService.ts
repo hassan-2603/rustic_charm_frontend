@@ -415,4 +415,209 @@ export function exportFeedbackExcel(feedbacks: Array<{ menuItemName: string; fee
   );
 }
 
+export function exportLastWeekOrdersExcel(
+  orders: any[],
+  weekRange: { start: Date; end: Date; startStr: string; endStr: string }
+) {
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const nowIndia = toIndiaDate(new Date());
+
+  const headerTitle = ["RUSTIC CHARM - LAST WEEK ORDERS DETAIL REPORT"];
+  const rangeInfo = ["Starting Date (Sunday):", weekRange.startStr, "Ending Date (Saturday):", weekRange.endStr];
+  const summaryInfo = [
+    "Total Orders:",
+    orders.length,
+    "Report Generated:",
+    `${formatStr(nowIndia)} ${formatTime(nowIndia)}`,
+  ];
+  const spacer: any[] = [];
+  const tableHeaders = [
+    "Date",
+    "Time",
+    "Order #",
+    "Table",
+    "Items Ordered",
+    "Total Qty",
+    "Order Total (₹)",
+    "Payment Method",
+    "Payment Status",
+    "Waiter",
+  ];
+
+  let totalQtySum = 0;
+  let totalSalesSum = 0;
+
+  const rows = orders.map((order) => {
+    const rawDate = parseDate(order.createdAt);
+    const dateObj = rawDate ? toIndiaDate(rawDate) : null;
+    const dateStr = dateObj ? `${formatStr(dateObj)} (${daysOfWeek[dateObj.getDay()]})` : "--";
+    const timeStr = dateObj ? formatTime(dateObj) : "--";
+    const orderNum = order.orderNumber ? `#${order.orderNumber}` : (order.id ? String(order.id).slice(0, 8) : "--");
+    const tableStr = order.tableNumber ? `Table ${order.tableNumber}` : (order.tableReference || "--");
+
+    let itemsStr = "--";
+    let orderQty = 0;
+    if (Array.isArray(order.items) && order.items.length > 0) {
+      itemsStr = order.items
+        .map((it: any) => {
+          const qty = Number(it.quantity || 1);
+          orderQty += qty;
+          const inst = it.specialInstructions ? ` [${it.specialInstructions}]` : "";
+          return `${it.name || "Item"} (x${qty})${inst}`;
+        })
+        .join(", ");
+    }
+
+    const orderTotal = Number(order.finalTotal || order.total || 0);
+    totalQtySum += orderQty;
+    totalSalesSum += orderTotal;
+
+    return [
+      dateStr,
+      timeStr,
+      orderNum,
+      tableStr,
+      itemsStr,
+      orderQty,
+      orderTotal,
+      order.paymentMethod || "Cash",
+      order.paymentStatus || order.status || "Completed",
+      order.waiterName || "--",
+    ];
+  });
+
+  const totalsRow = [
+    "TOTALS",
+    "",
+    `${orders.length} Orders`,
+    "",
+    "",
+    totalQtySum,
+    totalSalesSum,
+    "",
+    "",
+    "",
+  ];
+
+  const worksheetData = [
+    headerTitle,
+    rangeInfo,
+    summaryInfo,
+    spacer,
+    tableHeaders,
+    ...rows,
+    totalsRow,
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  const thinBorder = {
+    top: { style: "thin", color: { rgb: "E0E0E0" } },
+    bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+    left: { style: "thin", color: { rgb: "E0E0E0" } },
+    right: { style: "thin", color: { rgb: "E0E0E0" } },
+  };
+
+  const titleStyle = {
+    font: { bold: true, color: { rgb: "216A4C" }, sz: 14 },
+    alignment: { vertical: "center" },
+  };
+
+  const metaStyle = {
+    font: { bold: true, color: { rgb: "333333" }, sz: 10 },
+    alignment: { vertical: "center" },
+  };
+
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+    fill: { fgColor: { rgb: "216A4C" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: thinBorder,
+  };
+
+  const dataStyle = {
+    font: { color: { rgb: "333333" }, sz: 10 },
+    border: thinBorder,
+    alignment: { vertical: "center" },
+  };
+
+  const dataStyleCenter = {
+    font: { color: { rgb: "333333" }, sz: 10 },
+    border: thinBorder,
+    alignment: { horizontal: "center", vertical: "center" },
+  };
+
+  const dataStyleRight = {
+    font: { color: { rgb: "333333" }, sz: 10 },
+    border: thinBorder,
+    alignment: { horizontal: "right", vertical: "center" },
+  };
+
+  const itemsStyle = {
+    font: { color: { rgb: "333333" }, sz: 10 },
+    border: thinBorder,
+    alignment: { vertical: "center", wrapText: true },
+  };
+
+  const totalsStyle = {
+    font: { bold: true, color: { rgb: "000000" }, sz: 11 },
+    fill: { fgColor: { rgb: "EAEAEA" } },
+    border: thinBorder,
+    alignment: { vertical: "center" },
+  };
+
+  const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:J1");
+  const headerRowIdx = 4;
+  const totalsRowIdx = range.e.r;
+
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!worksheet[cellAddress]) continue;
+
+      if (R === 0) {
+        worksheet[cellAddress].s = titleStyle;
+      } else if (R === 1 || R === 2) {
+        worksheet[cellAddress].s = metaStyle;
+      } else if (R === headerRowIdx) {
+        worksheet[cellAddress].s = headerStyle;
+      } else if (R === totalsRowIdx) {
+        worksheet[cellAddress].s = totalsStyle;
+      } else if (R > headerRowIdx && R < totalsRowIdx) {
+        if (C === 0 || C === 1 || C === 2 || C === 3 || C === 7 || C === 8) {
+          worksheet[cellAddress].s = dataStyleCenter;
+        } else if (C === 4) {
+          worksheet[cellAddress].s = itemsStyle;
+        } else if (C === 5 || C === 6) {
+          worksheet[cellAddress].s = dataStyleRight;
+        } else {
+          worksheet[cellAddress].s = dataStyle;
+        }
+      }
+    }
+  }
+
+  worksheet["!cols"] = [
+    { wch: 18 }, // A: Date
+    { wch: 12 }, // B: Time
+    { wch: 12 }, // C: Order #
+    { wch: 14 }, // D: Table
+    { wch: 65 }, // E: Items Ordered
+    { wch: 12 }, // F: Total Qty
+    { wch: 16 }, // G: Order Total (₹)
+    { wch: 16 }, // H: Payment Method
+    { wch: 16 }, // I: Payment Status
+    { wch: 18 }, // J: Waiter
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Last Week Orders");
+
+  const excel = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(
+    new Blob([excel], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    `Last_Week_Orders_${weekRange.startStr}_to_${weekRange.endStr}.xlsx`
+  );
+}
+
 

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { exportOrdersExcel, exportFeedbackExcel } from "../services/excelService";
+import { exportOrdersExcel, exportFeedbackExcel, exportLastWeekOrdersExcel } from "../services/excelService";
 import SectionHeader from "../components/SectionHeader";
 import OrderFilters from "../components/OrderFilters";
 import OrderCard from "../components/OrderCard";
 import OrderDetailsDrawer from "../components/OrderDetailsDrawer";
 import EmptyOrders from "../components/EmptyOrders";
 
-import { listenOrders, getReportOrders, deleteAllOrders, getPendingFeedbacks, markFeedbacksDownloaded } from "../services/orderService";
+import { listenOrders, getReportOrders, getLastWeekOrders, deleteAllOrders, getPendingFeedbacks, markFeedbacksDownloaded } from "../services/orderService";
 
 function parseOrderDate(value: any): Date | null {
   if (!value) return null;
@@ -66,6 +66,40 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 function formatStr(date: Date) {
   return `${String(date.getDate()).padStart(2, '0')}-${MONTHS[date.getMonth()]}-${date.getFullYear()}`;
+}
+
+export function getLastCompletedWeekRange(referenceDate: Date = new Date()) {
+  const india = toIndiaDate(referenceDate);
+  const day = india.getDay(); // 0 is Sunday, 6 is Saturday
+
+  // Sunday of current week (at 00:00:00)
+  const currentSunday = new Date(india.getFullYear(), india.getMonth(), india.getDate() - day, 0, 0, 0, 0);
+
+  // Sunday of last week (7 days before current Sunday)
+  const lastSunday = new Date(currentSunday);
+  lastSunday.setDate(lastSunday.getDate() - 7);
+  lastSunday.setHours(0, 0, 0, 0);
+
+  // Saturday of last week (6 days after last Sunday)
+  const lastSaturday = new Date(lastSunday);
+  lastSaturday.setDate(lastSaturday.getDate() + 6);
+  lastSaturday.setHours(23, 59, 59, 999);
+
+  const startStr = formatStr(lastSunday);
+  const endStr = formatStr(lastSaturday);
+
+  const formatSql = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  return {
+    start: lastSunday,
+    end: lastSaturday,
+    startStr,
+    endStr,
+    startSql: `${formatSql(lastSunday)} 00:00:00`,
+    endSql: `${formatSql(lastSaturday)} 23:59:59`,
+    label: `${startStr} to ${endStr}`,
+  };
 }
 
 function isEligibleForReport(order: any): boolean {
@@ -129,9 +163,11 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [downloading, setDownloading] = useState(false);
   const [downloadingFeedback, setDownloadingFeedback] = useState(false);
+  const [downloadingLastWeek, setDownloadingLastWeek] = useState(false);
 
   const todayBiz = getTodayBizDate();
   const prevMonthName = MONTHS[(todayBiz.getMonth() + 11) % 12];
+  const lastWeekRange = useMemo(() => getLastCompletedWeekRange(new Date()), []);
 
   // Active unarchived orders on screen
   useEffect(() => {
@@ -222,6 +258,11 @@ export default function Orders() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // Strictly show ONLY current and pending orders (no completed, cancelled, or rejected)
+      if (order.status === "Completed" || order.status === "Cancelled" || order.status === "Rejected") {
+        return false;
+      }
+
       const matchesSearch =
         order.orderNumber?.toString().includes(search) ||
         order.tableNumber?.toString().includes(search);
@@ -361,9 +402,55 @@ export default function Orders() {
     }
   }
 
+  async function handleDownloadLastWeekReport() {
+    setDownloadingLastWeek(true);
+    try {
+      const weekRange = getLastCompletedWeekRange(new Date());
+      let lastWeekOrders = await getLastWeekOrders(weekRange.startSql, weekRange.endSql);
+
+      // In case backend had no date filter fallback, also filter on client side
+      if (lastWeekOrders.length > 0) {
+        lastWeekOrders = lastWeekOrders.filter((order) => {
+          if (!isEligibleForReport(order)) return false;
+          const d = parseOrderDate(order.createdAt);
+          if (!d) return false;
+          const bizDate = toIndiaDate(d);
+          if (bizDate.getHours() < 7) {
+            bizDate.setDate(bizDate.getDate() - 1);
+          }
+          const t = new Date(bizDate.getFullYear(), bizDate.getMonth(), bizDate.getDate()).getTime();
+          const startT = new Date(weekRange.start.getFullYear(), weekRange.start.getMonth(), weekRange.start.getDate()).getTime();
+          const endT = new Date(weekRange.end.getFullYear(), weekRange.end.getMonth(), weekRange.end.getDate()).getTime();
+          return t >= startT && t <= endT;
+        });
+      }
+
+      if (!lastWeekOrders || lastWeekOrders.length === 0) {
+        alert(`No orders found for last week period (${weekRange.startStr} to ${weekRange.endStr}).`);
+        return;
+      }
+
+      exportLastWeekOrdersExcel(lastWeekOrders, weekRange);
+    } catch (err) {
+      console.error("Error downloading last week report:", err);
+      alert("Failed to download last week report. Please check connection.");
+    } finally {
+      setDownloadingLastWeek(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex gap-3 flex-wrap items-center">
+        <button
+          onClick={handleDownloadLastWeekReport}
+          disabled={downloadingLastWeek}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2"
+          title={`Download full detailed orders from last week (Sunday ${lastWeekRange.startStr} to Saturday ${lastWeekRange.endStr})`}
+        >
+          <span>📋</span> {downloadingLastWeek ? "Downloading..." : `Download Last Week Order Details (${lastWeekRange.startStr} - ${lastWeekRange.endStr})`}
+        </button>
+
         <button
           onClick={() => handleDownloadReport("Daily")}
           disabled={downloading}

@@ -2,6 +2,7 @@ export {
   listenOrders,
   listenReportOrders,
   getReportOrders,
+  getLastWeekOrders,
   deleteAllCompletedOrders,
   deleteAllOrders,
   updateOrder,
