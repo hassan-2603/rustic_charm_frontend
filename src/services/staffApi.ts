@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend-production.up.railway.app").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://rusticcharmbackend-production.up.railway.app").replace(/\/$/, "");
 const API_BASE = `${API_BASE_URL}/api/staff`;
 
 async function fetchStaffJson(path: string, options: RequestInit = {}) {
