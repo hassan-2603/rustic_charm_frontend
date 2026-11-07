@@ -4,7 +4,7 @@
  */
 import { getStoredAdminToken } from "./adminApi";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend.railway.internal").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend-production.up.railway.app").replace(/\/$/, "");
 
 export async function uploadMenuImage(file: File): Promise<string> {
   const formData = new FormData();

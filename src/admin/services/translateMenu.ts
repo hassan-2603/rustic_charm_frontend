@@ -1,6 +1,6 @@
 import { requestAdminJson } from "./adminApi";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend.railway.internal").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend-production.up.railway.app").replace(/\/$/, "");
 
 export const SUPPORTED_LANGUAGES = [
   { name: "Russian", code: "ru" },

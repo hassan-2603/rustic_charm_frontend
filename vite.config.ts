@@ -18,11 +18,11 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
         '/api': {
-          target: process.env.VITE_API_BASE_URL || 'rusticcharmbackend.railway.internal',
+          target: process.env.VITE_API_BASE_URL || 'rusticcharmbackend-production.up.railway.app',
           changeOrigin: true,
         },
         '/images': {
-          target: process.env.VITE_API_BASE_URL || 'rusticcharmbackend.railway.internal',
+          target: process.env.VITE_API_BASE_URL || 'rusticcharmbackend-production.up.railway.app',
           changeOrigin: true,
         },
       },

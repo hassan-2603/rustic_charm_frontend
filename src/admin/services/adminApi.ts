@@ -1,6 +1,6 @@
 import { auth } from "../../firebase";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend.railway.internal").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "rusticcharmbackend-production.up.railway.app").replace(/\/$/, "");
 const API_BASE = `${API_BASE_URL}/api/admin`;
 const LOCAL_BACKEND_ADMIN_TOKEN = "rustic-charm-admin-token";
 
