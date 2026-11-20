@@ -103,10 +103,6 @@ export default function Dashboard() {
       o.status === "Payment Done"
     )
   );
-
-  const completedOrders = orders.filter(
-    (o: any) => o.status === "Completed"
-  );
   function handlePaymentDone(order: any) {
     setPaymentOrder(order);
   }
@@ -330,36 +326,6 @@ export default function Dashboard() {
         </div>
 
       </div>
-
-      {completedOrders.length > 0 && (
-        <div className="mt-12">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
-            <h2 className="text-2xl font-bold text-gray-800">
-              Completed Orders (Past 1 Week)
-            </h2>
-            <span className="text-sm font-medium text-gray-500 bg-gray-200/60 px-3 py-1 rounded-full">
-              {completedOrders.length} order{completedOrders.length === 1 ? "" : "s"} • Visible for 1 week
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
-            {completedOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                buttonText=""
-                onPrintBill={handlePrintBill}
-                onPrintKOT={handlePrintKOT}
-                onRetryBill={handleRetryBill}
-                onRetryKOT={handleRetryKOT}
-                onPreview={handlePreview}
-                billState={billStates[order.id]}
-                kotState={kotStates[order.id]}
-              />
-            ))}
-          </div>
-        </div>
-      )}
 
       <PaymentModal
         open={!!paymentOrder}
