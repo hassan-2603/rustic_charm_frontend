@@ -12,8 +12,9 @@ import {
   Coins,
   User,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
-import { updateOrder, updateOrderDiscount, cancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
+import { updateOrder, updateOrderDiscount, cancelOrder, undoCancelOrder, updateOrderSplits, getOrderSplits } from "../services/orderService";
 import { listenTables, freeTable } from "../services/tableApi";
 import { printBill, printKOT, retryPrint } from "../services/printerService";
 import { getKotSections } from "../../services/settingsService";
@@ -37,6 +38,7 @@ type Props = {
   order: any;
   onClose: () => void;
   onOrderCancelled?: (orderId: string) => void;
+  onOrderRestored?: (order: any) => void;
 };
 
 export default function OrderDetailsDrawer({
@@ -44,6 +46,7 @@ export default function OrderDetailsDrawer({
   order,
   onClose,
   onOrderCancelled,
+  onOrderRestored,
 }: Props) {
   const [tables, setTables] = useState<any[]>([]);
   const [selectedTableId, setSelectedTableId] = useState("");
@@ -62,6 +65,7 @@ export default function OrderDetailsDrawer({
   const [isSplitBillOpen, setIsSplitBillOpen] = useState(false);
   const [isEditPricesOpen, setIsEditPricesOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isUndoingCancel, setIsUndoingCancel] = useState(false);
   const [previewContent, setPreviewContent] = useState<{ type: "BILL" | "KOT", text: string } | null>(null);
   const [, forceUpdate] = useState(0);
   const [authBillPreview, setAuthBillPreview] = useState<AuthoritativeBill | null>(null);
@@ -336,6 +340,21 @@ export default function OrderDetailsDrawer({
     }
   }
 
+  async function handleUndoCancel() {
+    const ok = window.confirm(`Undo cancellation for Order #${order.orderNumber}? This will restore the order to active status.`);
+    if (!ok) return;
+    setIsUndoingCancel(true);
+    try {
+      const restored = await undoCancelOrder(order.id);
+      onOrderRestored?.(restored || { ...order, status: "Pending" });
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unable to restore order.");
+    } finally {
+      setIsUndoingCancel(false);
+    }
+  }
+
   const created =
     parseOrderDate(order.createdAt) ||
     (order.createdAt ? new Date(order.createdAt) : null);
@@ -494,16 +513,30 @@ export default function OrderDetailsDrawer({
 
         </div>
 
-        <div className="px-6 pt-6">
-          <button
-            type="button"
-            onClick={handleCancelOrder}
-            disabled={isCancelling}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition disabled:opacity-60"
-          >
-            {isCancelling ? "Cancelling..." : "Cancel Order"}
-          </button>
-        </div>
+        {order.status === "Cancelled" ? (
+          <div className="px-6 pt-6">
+            <button
+              type="button"
+              onClick={handleUndoCancel}
+              disabled={isUndoingCancel}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm"
+            >
+              <RotateCcw size={18} />
+              {isUndoingCancel ? "Restoring..." : "Undo Cancel (Reactivate Order)"}
+            </button>
+          </div>
+        ) : order.status !== "Completed" ? (
+          <div className="px-6 pt-6">
+            <button
+              type="button"
+              onClick={handleCancelOrder}
+              disabled={isCancelling}
+              className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition disabled:opacity-60"
+            >
+              {isCancelling ? "Cancelling..." : "Cancel Order"}
+            </button>
+          </div>
+        ) : null}
 
         <div className="p-6 space-y-8">
 

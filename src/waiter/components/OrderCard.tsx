@@ -194,7 +194,7 @@ export default function OrderCard({
           )}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
           {onReject && (
             <button
               onClick={() => onReject(order)}
@@ -289,16 +289,18 @@ export default function OrderCard({
             />
           )}
 
-          <button
-            disabled={!onAction}
-            onClick={() => onAction?.(order)}
-            className={`px-5 py-2 rounded-xl text-white font-semibold ${onAction
-              ? "bg-green-600 hover:bg-green-700"
-              : "bg-gray-400 cursor-not-allowed"
-              }`}
-          >
-            {buttonText}
-          </button>
+          {buttonText ? (
+            <button
+              disabled={!onAction}
+              onClick={() => onAction?.(order)}
+              className={`px-5 py-2 rounded-xl text-white font-semibold ${onAction
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-gray-400 cursor-not-allowed"
+                }`}
+            >
+              {buttonText}
+            </button>
+          ) : null}
         </div>
 
       </div>

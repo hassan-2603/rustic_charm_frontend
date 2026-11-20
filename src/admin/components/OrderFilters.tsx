@@ -16,6 +16,7 @@ const statuses = [
   "Served",
   "Bill Requested",
   "Payment Done",
+  "Completed",
 ];
 
 export default function OrderFilters({

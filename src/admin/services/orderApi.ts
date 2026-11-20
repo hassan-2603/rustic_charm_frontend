@@ -139,6 +139,12 @@ export async function cancelOrder(orderId: string) {
   });
 }
 
+export async function undoCancelOrder(orderId: string) {
+  return await requestAdminJson(`${BASE}/${orderId}/undo-cancel`, {
+    method: "POST",
+  });
+}
+
 export async function updateOrderSplits(orderId: string, splits: any[]) {
   return await requestAdminJson(`${BASE}/${orderId}/splits`, {
     method: "POST",

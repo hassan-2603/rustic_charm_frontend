@@ -5,6 +5,7 @@ import {
   Receipt,
   User,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
 
 import StatusBadge from "./StatusBadge";
@@ -14,11 +15,13 @@ import { parseOrderDate } from "../../utils/orderTimer";
 type Props = {
   order: any;
   onView: () => void;
+  onUndoCancel?: (order: any) => void;
 };
 
 export default function OrderCard({
   order,
   onView,
+  onUndoCancel,
 }: Props) {
   const created =
     parseOrderDate(order.createdAt) ||
@@ -157,56 +160,52 @@ export default function OrderCard({
 
         </div>
 
-        {/* Footer */}
+        {/* Payment Method */}
+        <div className="mt-5">
+          <span className="text-sm font-medium">
+            Payment:
+          </span>
 
-        <div className="mt-8 flex justify-end">
+          <span
+            className={`ml-2 px-3 py-1 rounded-full text-xs font-semibold ${
+              order.paymentMethod === "UPI"
+                ? "bg-green-100 text-green-700"
+                : order.paymentMethod === "Card"
+                ? "bg-blue-100 text-blue-700"
+                : order.paymentMethod === "Cash"
+                ? "bg-orange-100 text-orange-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {order.paymentMethod || "Not Paid"}
+          </span>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 flex flex-wrap items-center justify-end gap-3">
+          {order.status === "Cancelled" && onUndoCancel && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUndoCancel(order);
+              }}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl transition font-semibold shadow-sm"
+              title="Restore this order and continue with it"
+            >
+              <RotateCcw size={18} />
+              Undo Cancel
+            </button>
+          )}
 
           <button
             onClick={onView}
             className="flex items-center gap-2 bg-olive hover:bg-olive/90 text-white px-5 py-3 rounded-xl transition font-semibold"
           >
             <Eye size={18} />
-
             View Details
-
           </button>
-
         </div>
-        {/* Payment Method */}
-
-<div className="mt-5">
-  <span className="text-sm font-medium">
-    Payment:
-  </span>
-
-  <span
-    className={`ml-2 px-3 py-1 rounded-full text-xs font-semibold ${
-      order.paymentMethod === "UPI"
-        ? "bg-green-100 text-green-700"
-        : order.paymentMethod === "Card"
-        ? "bg-blue-100 text-blue-700"
-        : order.paymentMethod === "Cash"
-        ? "bg-orange-100 text-orange-700"
-        : "bg-gray-100 text-gray-600"
-    }`}
-  >
-    {order.paymentMethod || "Not Paid"}
-  </span>
-</div>
-
-{/* Footer */}
-
-<div className="mt-8 flex justify-end">
-
-  <button
-    onClick={onView}
-    className="flex items-center gap-2 bg-olive hover:bg-olive/90 text-white px-5 py-3 rounded-xl transition font-semibold"
-  >
-    <Eye size={18} />
-    View Details
-  </button>
-
-</div>
 
       </div>
 

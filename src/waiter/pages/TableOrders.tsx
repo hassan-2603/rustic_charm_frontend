@@ -70,6 +70,7 @@ export default function TableOrders() {
     );
 
     const activeOrders = tableOrders.filter((o) => o.status !== "Completed" && o.status !== "Rejected" && o.status !== "Cancelled");
+    const completedTableOrders = tableOrders.filter((o) => o.status === "Completed");
 
     async function handlePaymentDone(order: any) {
         setPaymentOrder(order);
@@ -252,6 +253,35 @@ export default function TableOrders() {
                             kotState={kotStates[order.id]}
                         />
                     ))}
+                </div>
+            )}
+
+            {completedTableOrders.length > 0 && (
+                <div className="mt-10">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
+                        <h2 className="text-2xl font-bold text-gray-800">
+                            Completed Orders (Past 1 Week)
+                        </h2>
+                        <span className="text-sm font-medium text-gray-500 bg-gray-200/60 px-3 py-1 rounded-full">
+                            {completedTableOrders.length} order{completedTableOrders.length === 1 ? "" : "s"} • Stored for 1 week
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
+                        {completedTableOrders.map((order) => (
+                            <OrderCard
+                                key={order.id}
+                                order={order}
+                                buttonText=""
+                                onPrintBill={handlePrintBill}
+                                onPrintKOT={handlePrintKOT}
+                                onRetryBill={handleRetryBill}
+                                onRetryKOT={handleRetryKOT}
+                                onPreview={handlePreview}
+                                billState={billStates[order.id]}
+                                kotState={kotStates[order.id]}
+                            />
+                        ))}
+                    </div>
                 </div>
             )}
 

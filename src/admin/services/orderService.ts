@@ -7,6 +7,7 @@ export {
   deleteAllOrders,
   updateOrder,
   updateOrderDiscount,
+  undoCancelOrder,
   addOrderItems,
   removeOrderItems,
   cancelOrder,

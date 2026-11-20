@@ -6,7 +6,7 @@ import OrderCard from "../components/OrderCard";
 import OrderDetailsDrawer from "../components/OrderDetailsDrawer";
 import EmptyOrders from "../components/EmptyOrders";
 
-import { listenOrders, getReportOrders, getLastWeekOrders, deleteAllOrders, getPendingFeedbacks, markFeedbacksDownloaded } from "../services/orderService";
+import { listenOrders, getReportOrders, getLastWeekOrders, deleteAllOrders, getPendingFeedbacks, markFeedbacksDownloaded, undoCancelOrder } from "../services/orderService";
 
 function parseOrderDate(value: any): Date | null {
   if (!value) return null;
@@ -157,6 +157,7 @@ function getMonthlyOrders(orders: any[], targetDate = getTodayBizDate()) {
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"orders" | "cancelled">("orders");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -256,13 +257,18 @@ export default function Orders() {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      // Strictly show ONLY current and pending orders (no completed, cancelled, or rejected)
-      if (order.status === "Completed" || order.status === "Cancelled" || order.status === "Rejected") {
-        return false;
-      }
+  // Cancelled orders (stay for 1 week)
+  const cancelledOrders = useMemo(() => {
+    return orders.filter((o) => o.status === "Cancelled" || o.status === "Rejected");
+  }, [orders]);
 
+  // Main orders: active + completed orders (staying for 1 week)
+  const mainOrders = useMemo(() => {
+    return orders.filter((o) => o.status !== "Cancelled" && o.status !== "Rejected");
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    return mainOrders.filter((order) => {
       const matchesSearch =
         order.orderNumber?.toString().includes(search) ||
         order.tableNumber?.toString().includes(search);
@@ -273,7 +279,49 @@ export default function Orders() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [orders, search, statusFilter]);
+  }, [mainOrders, search, statusFilter]);
+
+  const filteredCancelledOrders = useMemo(() => {
+    return cancelledOrders.filter((order) => {
+      const matchesSearch =
+        order.orderNumber?.toString().includes(search) ||
+        order.tableNumber?.toString().includes(search);
+
+      return matchesSearch;
+    });
+  }, [cancelledOrders, search]);
+
+  async function handleUndoCancel(order: any) {
+    const ok = window.confirm(`Undo cancel for Order #${order.orderNumber}? This will restore the order and make it active again.`);
+    if (!ok) return;
+
+    try {
+      const restored = await undoCancelOrder(order.id);
+      setOrders((current) =>
+        current.map((o) =>
+          o.id === order.id
+            ? { ...o, status: restored?.status || "Pending", ...(restored || {}) }
+            : o
+        )
+      );
+      setActiveTab("orders");
+      alert(`Order #${order.orderNumber} restored successfully! It has returned to the Orders tab.`);
+    } catch (err: any) {
+      console.error("Failed to restore cancelled order:", err);
+      alert(err?.message || "Failed to restore cancelled order.");
+    }
+  }
+
+  function handleOrderRestored(restoredOrder: any) {
+    setOrders((current) =>
+      current.map((o) =>
+        o.id === restoredOrder.id
+          ? { ...o, ...restoredOrder }
+          : o
+      )
+    );
+    setActiveTab("orders");
+  }
 
   async function handleDeleteAll() {
     const ok = window.confirm(
@@ -440,8 +488,8 @@ export default function Orders() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex gap-3 flex-wrap items-center">
+    <div className="space-y-8 w-full max-w-full overflow-x-hidden">
+      <div className="w-full max-w-full overflow-x-auto pb-2 flex gap-3 flex-wrap items-center">
         <button
           onClick={handleDownloadLastWeekReport}
           disabled={downloadingLastWeek}
@@ -507,35 +555,109 @@ export default function Orders() {
 
         <button
           onClick={handleDeleteAll}
-          className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2 ml-auto"
+          className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap shadow-sm transition flex items-center gap-2 sm:ml-auto"
           title="Clears orders from active screen. Daily, 15-Day, and Monthly reports remain 100% saved."
         >
           <span>🧹</span> Clear Screen Orders
         </button>
       </div>
 
-      <OrderFilters
-        search={search}
-        setSearch={setSearch}
-        status={statusFilter}
-        setStatus={setStatusFilter}
-      />
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 gap-2 sm:gap-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab("orders")}
+          className={`pb-3 px-1 font-semibold text-base sm:text-lg border-b-2 transition flex items-center gap-2 ${
+            activeTab === "orders"
+              ? "border-olive text-olive"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <span>Orders</span>
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-olive/10 text-olive font-bold">
+            {mainOrders.length}
+          </span>
+        </button>
 
-      {filteredOrders.length === 0 ? (
-        <EmptyOrders />
+        <button
+          type="button"
+          onClick={() => setActiveTab("cancelled")}
+          className={`pb-3 px-1 font-semibold text-base sm:text-lg border-b-2 transition flex items-center gap-2 ${
+            activeTab === "cancelled"
+              ? "border-red-600 text-red-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <span>Cancelled Orders</span>
+          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+            cancelledOrders.length > 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
+          }`}>
+            {cancelledOrders.length}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "orders" ? (
+        <>
+          <OrderFilters
+            search={search}
+            setSearch={setSearch}
+            status={statusFilter}
+            setStatus={setStatusFilter}
+          />
+
+          {filteredOrders.length === 0 ? (
+            <EmptyOrders />
+          ) : (
+            <div className="grid gap-5">
+              {filteredOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onView={() => {
+                    setSelectedOrder(order);
+                    setDrawerOpen(true);
+                  }}
+                  onUndoCancel={handleUndoCancel}
+                />
+              ))}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="grid gap-5">
-          {filteredOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onView={() => {
-                setSelectedOrder(order);
-                setDrawerOpen(true);
-              }}
+        <>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-900">
+            <p>
+              Cancelled orders are kept here for <strong>1 week</strong> and then disappear. Click <strong>Undo Cancel</strong> on any order to restore it back to the Orders section and continue normal workflow.
+            </p>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search cancelled orders..."
+              className="px-4 py-2 bg-white rounded-xl border border-amber-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
-          ))}
-        </div>
+          </div>
+
+          {filteredCancelledOrders.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 text-gray-500">
+              <p className="text-lg font-medium">No cancelled orders in the last 1 week.</p>
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {filteredCancelledOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onView={() => {
+                    setSelectedOrder(order);
+                    setDrawerOpen(true);
+                  }}
+                  onUndoCancel={handleUndoCancel}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <OrderDetailsDrawer
@@ -546,8 +668,9 @@ export default function Orders() {
           setSelectedOrder(null);
         }}
         onOrderCancelled={(orderId) => {
-          setOrders((current) => current.filter((order) => order.id !== orderId));
+          setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status: "Cancelled" } : order));
         }}
+        onOrderRestored={handleOrderRestored}
       />
     </div>
   );

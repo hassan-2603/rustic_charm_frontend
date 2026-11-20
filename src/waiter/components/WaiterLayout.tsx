@@ -9,14 +9,14 @@ export default function WaiterLayout() {
     }
 
     return (
-        <div className="flex min-h-screen bg-gray-100">
+        <div className="flex min-h-screen bg-gray-100 w-full max-w-full overflow-x-hidden">
             <WaiterSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden">
                 {/* Mobile top bar to spacing the floating Menu button */}
                 <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-end px-4 shadow-xs">
                     <span className="font-semibold text-gray-700 text-sm">Waiter Panel</span>
                 </div>
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden max-w-full">
                     <Outlet />
                 </main>
             </div>
